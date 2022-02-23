@@ -75,7 +75,7 @@ end
 ---@param rule? string
 ---@param post? function
 --Add one or more rules to the grammar.
---If the first argument is a table of tables, the elements of each sub-table are used as arguments for individual calls. 
+--If the first argument is a table of tables, the elements of each sub-table are used as arguments for individual calls.
 function grammar_core:addRules(input, rule, post)
   if type(input) == "table" then
     for _,v in ipairs(input) do
