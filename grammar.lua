@@ -56,8 +56,13 @@ grammar:
         {1: rule, 2: postprocessing function}
 ]]
 
+---@class Grammar
+---@field _keywords table
+---@field _operators table
+---@field _list table
 local grammar_core = {}
 grammar_core.__index = grammar_core
+
 
 local add_rule = function(gram, name, rule, post)
   if not gram._list[name] then
@@ -66,20 +71,26 @@ local add_rule = function(gram, name, rule, post)
   table.insert(gram._list[name], {generate_pattern(rule, gram), post})
 end
 
--- function grammar_core:addRule(name, rule, postproc)
-function grammar_core:addRules(input, ...)
+---@param input string | table
+---@param rule? string
+---@param post? function
+--Add one or more rules to the grammar.
+--If the first argument is a table of tables, the elements of each sub-table are used as arguments for individual calls. 
+function grammar_core:addRules(input, rule, post)
   if type(input) == "table" then
     for _,v in ipairs(input) do
       add_rule(self, v[1], v[2], v[3])
     end
   elseif type(input) == "string" then
-    local args = {...}
-    add_rule(self, input, args[1], args[2])
+    add_rule(self, input, rule, post)
   else
     error("first argument must be a string or list of rules",2)
   end
 end
 
+---@param keyw string | table
+--Add one or more keywords to the grammar.
+--If given a table of strings, all keywords will be added.
 function grammar_core:addKeywords(keyw)
   if type(keyw) == "string" then
     self._keywords[keyw] = true
@@ -96,6 +107,9 @@ function grammar_core:addKeywords(keyw)
   end
 end
 
+---@param oper string | table
+--Add one or more multi-character operators to the grammar.
+--If given a table of strings, all operators will be added.
 function grammar_core:addOperators(oper)
   if type(oper) == "string" then
     table.insert(self._operators, oper)
@@ -114,6 +128,8 @@ function grammar_core:addOperators(oper)
   end
 end
 
+---@param label string
+--Prints all the keywords, operators, and rules contained in the grammar to stdout.
 function grammar_core:_debug(label)
   local final_label = (label and ("'%s'"):format(label)) or ""
   print("dumping grammar " .. final_label)
@@ -137,7 +153,8 @@ function grammar_core:_debug(label)
   end
 end
 
-
+---@return Grammar
+--Creates a blank grammar object.
 local function newGrammar()
   local output = setmetatable({}, grammar_core)
   output._keywords = {}
