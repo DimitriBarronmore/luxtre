@@ -156,8 +156,9 @@ function tokenstream_base:_debug()
     end
 end
 
-function tokenstream_base:create_macro(name, result)
+function tokenstream_base:create_macro(name, result, complex)
     local macro = {type = "simple", result = result}
+    if complex then macro.type = "complex" end
     self.macros[name] = macro
 end
 
@@ -182,7 +183,6 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         -- end of line detection
         if next_char == nil then
             inpstr:nextLine()
-            print("newline")
             goto continue
         end
         --ignore spaces
@@ -201,9 +201,33 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                 if self.macros[name] then
                    local macrodef = self.macros[name]
                    if macrodef.type == "simple" then
-                    --ignore the line; splice in more text
+                    --ignore the word; splice in more text
                     inpstr:splice(macrodef.result)
                     goto continue
+                   elseif macrodef.type == "complex" then
+                       --find arguments and use them
+                       local after_word = position[2]+#name
+                       print(after_word)
+                       local s2, e2, in_parens = string.find(this_line, " *(%b())")
+                       print(position[1], s2)
+                        if s2 == after_word then
+                            inpstr:consume(e2-s2)
+                            print(in_parens)
+                            in_parens = in_parens:sub(2,-2)
+                            local args = {}
+                            -- for arg in in_parens:gmatch("[^|]*[^\\|]|?") do
+                            for arg in in_parens:gmatch("[^|]*|?") do
+                                table.insert(args, arg:match("[^|]*"))
+                            end
+                            print("args",table.concat(args, ","))
+                            print("splicoe", macrodef.result:format(unpack(args)))
+                            inpstr:splice(macrodef.result:format(unpack(args)))
+                            goto continue
+                        else
+                            --error, no parens found
+                            print("no parens found for complex macro")
+                            goto continue
+                        end
                    end
                 end
                 if grammar._keywords[name] then
