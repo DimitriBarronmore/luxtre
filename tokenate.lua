@@ -13,6 +13,8 @@ local export = {}
 ---@field current_line number
 ---@field current_index number
 ---@field lines string[]
+---@field name string
+---@field source string
 local inputstream_base = {}
 inputstream_base.__index = inputstream_base
 
@@ -63,6 +65,15 @@ function inputstream_base:advance(x)
     -- end
 end
 
+function inputstream_base:throw(errmsg, position)
+    local msgpre = "luxtre: error loading module '%s' from %s:\n"
+    msgpre = msgpre:format(self.name, self.source)
+    local msgpos = ("%s:%d:%d "):format(self.name, position[1], position[2])
+    local msgpost = msgpos .. errmsg
+
+    error(msgpre .. msgpost, 0) -- TODO: change error level once full framework is in place
+end
+
 ---@return boolean
 --Attempts to move on to the next line.
 --Returns true if successful, false if there are no more lines.
@@ -88,7 +99,7 @@ end
 
 ---@param text string
 ---@return lux_inputstream
-function export.inputstream_from_text(text)
+function export.inputstream_from_text(text, name)
     text = text:gsub('\r\n?', "\n")
     ---@type lux_inputstream
     local inpstr = { lines = {} }
@@ -99,18 +110,22 @@ function export.inputstream_from_text(text)
     end
     inpstr.current_line = math.min(1, #inpstr.lines)
     inpstr.current_index = 1
+    inpstr.name = name or "<unknown>"
+    inpstr.source = "text"
     setmetatable(inpstr, inputstream_base)
     return inpstr
 end
 
 ---@param filename string
 ---@return lux_inputstream
-function export.inputstream_from_file(filename)
+function export.inputstream_from_file(filename, name)
     local concat = {}
     for line in io.lines(filename) do
         table.insert(concat, line)
     end
-    return export.inputstream_from_text(table.concat(concat,"\n"))
+    local inpstr = export.inputstream_from_text(table.concat(concat,"\n"), name)
+    inpstr.source = ("file '%s'"):format(filename)
+    return inpstr
 end
 
 function inputstream_base:_debug()
@@ -269,12 +284,39 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                 inpstr:advance(pos)
             end
 
+        elseif next_char:match("[%d.]") then -- Numbers
+            local postdecimal = false
+            if next_char:match("%.") then postdecimal = true end
+            local pos = 1
+            local continue = true
+            local malformed = false
+            while continue do
+                pos = pos + 1
+                local char = inpstr:peek(pos)
+                if char == nil then
+                    break
+                elseif char == "." then
+                    if postdecimal == false then
+                        postdecimal = true
+                    else
+                        malformed = true
+                    end
+                elseif not char:match("%d") then
+                    break
+                end
+            end
+            if malformed then  -- malformed number error
+                local errmsg = ("malformed number '%s'"):format(inpstr:peekTo(pos-1))
+                inpstr:throw(errmsg, position)
+            end
+            self:insertToken("number", inpstr:peekTo(pos-1), position)
+            inpstr:advance(pos-1)
+
         else
             position = position or {}
             print(next_char, position[1], position[2])
             inpstr:advance()
         end
-
     end
 end
 
