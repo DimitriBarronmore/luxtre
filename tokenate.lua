@@ -103,7 +103,7 @@ function export.inputstream_from_text(text, name)
     text = text:gsub('\r\n?', "\n")
     ---@type lux_inputstream
     local inpstr = { lines = {} }
-    for line in text:gmatch("[^\n]+\n?") do
+    for line in text:gmatch("[^\n]*\n?") do
         if line:sub(-1) == "\n" then line = line:sub(1,-2) end
         -- print(line)
         table.insert(inpstr.lines, line)
@@ -243,6 +243,65 @@ local function handle_macro(tokstr, inpstr, name)
                 --    end
 end
 
+local function handle_multilinestr(pos, inpstr)
+    local eqcount = 0
+    while true do
+        pos = pos + 1
+        local char = inpstr:peek(pos)
+        if char == "=" then
+            eqcount = eqcount + 1
+        elseif char == "[" then
+            break
+        else -- not a multiline string
+            return
+        end
+    end
+    -- by this point we know for certain to begin a multiline string
+    local chars = {}
+    table.insert(chars, (inpstr:peekTo(pos)))
+    inpstr:advance(pos)
+    local isnewline = false
+    while true do
+        -- pos = pos + 1
+        local char = inpstr:peek()
+        if char == "]" then --begin search for closing brackets
+            local passedeqs = true
+            if eqcount > 0 then
+                for i = 1, eqcount do
+                    local char = inpstr:peek(i + 1)
+                    if char ~= "=" then
+                        passedeqs = false
+                        break
+                    end
+                end
+            end
+            if passedeqs == true then
+                if inpstr:peek(eqcount + 2) == "]" then
+                    table.insert(chars, (inpstr:peekTo(eqcount + 2)) )
+                    return true, table.concat(chars)
+                else
+                    table.insert(chars, char)
+                end
+            else
+                table.insert(chars, char)
+            end
+        elseif char == nil then
+            table.insert(chars, "\n")
+            inpstr:nextLine()
+  
+            isnewline = true
+            if inpstr.current_line > #inpstr.lines then
+                return false
+            end
+        else
+            table.insert(chars, char)
+        end
+        if not isnewline then inpstr:advance() end
+        isnewline = false
+    end
+end
+
+
 ---@param inpstr lux_inputstream
 ---@param grammar Grammar
 ---@return lux_tokenstream
@@ -330,6 +389,30 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                     break
                 end
             end
+
+            
+        elseif next_char == "[" then -- multiline strings
+            local status, str = handle_multilinestr(1, inpstr)
+            if status == true then
+                self:insertToken("string", str, position)
+            elseif status == false then
+                inpstr:throw("unterminated multiline string", position)
+            elseif status == nil then
+                self:insertToken("symbol", "[", position)
+                inpstr:advance()
+            end
+
+        elseif inpstr:peekTo(2) == "--" then -- comments
+            local status, str
+            if inpstr:peek(3) == "[" then
+                status, str = handle_multilinestr(3, inpstr)
+            end
+            if status == false then
+                inpstr:throw("unterminated multiline comment", position)
+            elseif status == nil then
+                inpstr:nextLine()
+            end
+
 
         else
             position = position or {}
