@@ -243,6 +243,26 @@ local function handle_macro(tokstr, inpstr, name)
                 --    end
 end
 
+local function handle_string(inpstr)
+    local quotetype = '"'
+    if inpstr:peek() == "'" then
+        quotetype = "'"
+    end
+    local pos = 1
+    while true do
+        pos = pos + 1
+        local char = inpstr:peek(pos)
+        if char == nil then
+            return false
+        elseif char == quotetype and inpstr:peek(pos-1) ~= [[\]] then
+            -- tokstr:insertToken("string", inpstr:peekTo(pos), position)
+            -- inpstr:advance(pos)
+            -- break
+            return true, inpstr:peekTo(pos)
+        end
+    end
+end
+
 local function handle_multilinestr(pos, inpstr)
     local eqcount = 0
     while true do
@@ -384,21 +404,12 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
 
 
         elseif next_char:match("['\"]") then -- single-line strings
-            local quotetype = '"'
-            if next_char == "'" then
-                quotetype = "'"
-            end
-            local pos = 1
-            while true do
-                pos = pos + 1
-                local char = inpstr:peek(pos)
-                if char == nil then
-                    inpstr:throw("unfinished string", position)
-                elseif char == quotetype and inpstr:peek(pos-1) ~= [[\]] then
-                    self:insertToken("string", inpstr:peekTo(pos), position)
-                    inpstr:advance(pos)
-                    break
-                end
+            local status, str = handle_string(inpstr)
+            if status == false then
+                inpstr:throw("unfinished string", position)
+            elseif status == true then
+                self:insertToken("string", str, position)
+                inpstr:advance(str:len())
             end
 
             
