@@ -326,7 +326,134 @@ local function grab_args(inpstr, position)
         end
     end
     return args
-end 
+end
+
+local function directive__define(inpstr, tokstr)
+    local chars = {}
+    local type = "simple"
+    while true do
+        inpstr:advance()
+        local char, position = inpstr:peek()
+        if char == " " then
+            if #chars > 0 then
+                break
+            end
+        elseif char == nil then
+            inpstr:throw("unfinished macro definition", position)
+        elseif char:match("[%a%d_]") then
+            table.insert(chars, char)
+        elseif char == "(" then
+            type = "complex"
+            break
+        else
+        inpstr:throw(("invalid character '%s' in macro definition"):format(char), position)
+        end
+    end
+    local macroname = table.concat(chars)
+
+    if type == "simple" then
+        while true do 
+            inpstr:advance()
+            local char, position = inpstr:peek()
+            if char == nil then
+                inpstr:throw("unfinished macro definition", position)
+            elseif char == "(" then
+                type = "complex"
+                break
+            -- elseif inpstr:peekTo(2) == "as" then
+            elseif char ~= " " then
+                break
+            end
+        end
+    end
+
+    local args = {}
+    local used_args = {}
+    if type == "complex" then -- grab args
+        chars = {}
+        local postspace = false
+        local postvararg = false
+        local postchar = false
+        while true do
+            inpstr:advance()
+            local char, position = inpstr:peek()
+            if char == nil then
+                inpstr:throw("unterminated argument list", position)
+            elseif char == "," then
+                if postvararg then
+                    inpstr:throw("unexpected character ',' after '...'", position)
+                end
+                local fullarg = table.concat(chars)
+                if used_args[fullarg] then
+                    inpstr:throw("argument name used multiple times", position)
+                end
+                table.insert(args, fullarg)
+                used_args[fullarg] = true
+                chars = {}
+                postspace = false
+                postchar = false
+            elseif char == ')' then
+                local fullarg = table.concat(chars)
+                if used_args[fullarg] then
+                    inpstr:throw("argument name used multiple times", position)
+                end
+                table.insert(args, fullarg)
+                used_args[fullarg] = true
+                inpstr:advance()
+                break
+
+            elseif char:match("[%a%d_]") then
+                postchar = true
+                if postvararg then
+                    inpstr:throw(("unexpected character '%s' after '...'"):format(char), position)
+                end
+                if not postspace then
+                    table.insert(chars, char)
+                else
+                    inpstr:throw("expected ',' in argument list", position)
+                end
+            elseif char == " " then
+                if #chars > 0 then
+                    postspace = true
+                end
+            elseif inpstr:peekTo(3) == "..." and postchar == false then
+                postvararg = true
+                table.insert(args, "...")
+                inpstr:advance(2)
+            else
+                inpstr:throw(("unexpected character '%s' in argument name"):format(char), position)
+            end
+        end
+
+    end
+    -- print("args;", unpack(args))
+
+    chars = {}
+    -- if type == "simple" then --- grab result
+    while true do
+        local char, position = inpstr:peek()
+        if char == nil then
+            if #chars == 0 then
+                inpstr:throw("unfinished macro definition", position)
+            else
+                local result = table.concat(chars)
+                if type == "complex" then
+                    tokstr:create_macro(macroname, result, args)
+                else
+                    tokstr:create_macro(macroname, result)
+                end
+                return
+            end
+        elseif char == " " then
+            if #chars > 0 then
+                table.insert(chars, char)
+            end
+        else
+            table.insert(chars, char)
+        end
+        inpstr:advance()
+    end
+end
 
 local function handle_directive(tokstr, inpstr, position)
     local chars = {}
@@ -354,129 +481,7 @@ local function handle_directive(tokstr, inpstr, position)
     local command = table.concat(chars)
 
     if command == "define" then -- Macros
-        chars = {}
-        local type = "simple"
-        while true do
-            inpstr:advance()
-            local char, position = inpstr:peek()
-            if char == " " then
-                if #chars > 0 then
-                    break
-                end
-            elseif char == nil then
-                inpstr:throw("unfinished macro definition", position)
-            elseif char:match("[%a%d_]") then
-                table.insert(chars, char)
-            elseif char == "(" then
-                type = "complex"
-                break
-            else
-            inpstr:throw(("invalid character '%s' in macro definition"):format(char), position)
-            end
-        end
-        local macroname = table.concat(chars)
-
-        if type == "simple" then
-            while true do 
-                inpstr:advance()
-                local char, position = inpstr:peek()
-                if char == nil then
-                    inpstr:throw("unfinished macro definition", position)
-                elseif char == "(" then
-                    type = "complex"
-                    break
-                -- elseif inpstr:peekTo(2) == "as" then
-                elseif char ~= " " then
-                    break
-                end
-            end
-        end
-
-        local args = {}
-        local used_args = {}
-        if type == "complex" then -- grab args
-            chars = {}
-            local postspace = false
-            local postvararg = false
-            local postchar = false
-            while true do
-                inpstr:advance()
-                local char, position = inpstr:peek()
-                if char == nil then
-                    inpstr:throw("unterminated argument list", position)
-                elseif char == "," then
-                    if postvararg then
-                        inpstr:throw("unexpected character ',' after '...'", position)
-                    end
-                    local fullarg = table.concat(chars)
-                    if used_args[fullarg] then
-                        inpstr:throw("argument name used multiple times", position)
-                    end
-                    table.insert(args, fullarg)
-                    used_args[fullarg] = true
-                    chars = {}
-                    postspace = false
-                    postchar = false
-                elseif char == ')' then
-                    local fullarg = table.concat(chars)
-                    if used_args[fullarg] then
-                        inpstr:throw("argument name used multiple times", position)
-                    end
-                    table.insert(args, fullarg)
-                    used_args[fullarg] = true
-                    inpstr:advance()
-                    break
-
-                elseif char:match("[%a%d_]") then
-                    postchar = true
-                    if postvararg then
-                        inpstr:throw(("unexpected character '%s' after '...'"):format(char), position)
-                    end
-                    if not postspace then
-                        table.insert(chars, char)
-                    else
-                        inpstr:throw("expected ',' in argument list", position)
-                    end
-                elseif char == " " then
-                    if #chars > 0 then
-                        postspace = true
-                    end
-                elseif inpstr:peekTo(3) == "..." and postchar == false then
-                    postvararg = true
-                    table.insert(args, "...")
-                    inpstr:advance(2)
-                else
-                    inpstr:throw(("unexpected character '%s' in argument name"):format(char), position)
-                end
-            end
-        end
-        -- print("args;", unpack(args))
-
-        chars = {}
-        -- if type == "simple" then --- grab result
-            while true do
-                local char, position = inpstr:peek()
-                if char == nil then
-                    if #chars == 0 then
-                        inpstr:throw("unfinished macro definition", position)
-                    else
-                        local result = table.concat(chars)
-                        if type == "complex" then
-                            tokstr:create_macro(macroname, result, args)
-                        else
-                            tokstr:create_macro(macroname, result)
-                        end
-                        return
-                    end
-                elseif char == " " then
-                    if #chars > 0 then
-                        table.insert(chars, char)
-                    end
-                else
-                    table.insert(chars, char)
-                end
-                inpstr:advance()
-            end
+        directive__define(inpstr, tokstr)
     else
         inpstr:throw(("unimplemented directive '%s'"):format(command), position)
 
