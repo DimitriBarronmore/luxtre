@@ -4,6 +4,8 @@
 
 local export = {}
 
+--[[   INPUT STREAM   ]]--
+
 --[[
   Class for reading through the input
     - iterate through individual lines until line is empty
@@ -136,9 +138,12 @@ function inputstream_base:_debug()
     print(table.concat(concat, "\n"))
 end
 
+--[[   TOKEN STREAM   ]]--
+
 --[[
     Class for creating a stream of tokens
 --]]
+
 
 ---@class lux_token
 ---@field type string
@@ -175,6 +180,8 @@ function tokenstream_base:_debug()
     end
 end
 
+--[[   MACRO MAKING   ]]--
+
 function tokenstream_base:create_macro(name, result, complex)
     local macro = {type = "simple", result = result}
     if complex then
@@ -183,6 +190,10 @@ function tokenstream_base:create_macro(name, result, complex)
     end
     self.macros[name] = macro
 end
+
+
+--[[   COMPLEX TOKEN SEARCHES   ]]--
+
 
 local function skip_to_significant(inpstr)
     while true do
@@ -279,6 +290,8 @@ local function handle_multilinestr(pos, inpstr)
     end
 end
 
+--[[   ARGUMENT DECOMPOSITION   ]]--
+
 local function grab_args(inpstr, position)
     local args = {}
     local chars = {}
@@ -327,6 +340,9 @@ local function grab_args(inpstr, position)
     end
     return args
 end
+
+--[[   DIRECTIVE FUNCTIONS   ]]--
+
 
 local function directive__define(inpstr, tokstr)
     local chars = {}
@@ -457,6 +473,8 @@ local function directive__define(inpstr, tokstr)
     end
 end
 
+--[[   DIRECTIVE/MACRO REDIRECTION   ]]--
+
 local function handle_directive(tokstr, inpstr, position)
     local chars = {}
     while true do -- find first word
@@ -520,6 +538,8 @@ local function handle_macro(tokstr, inpstr, name, position)
     end
 end
 
+
+--[[   TOKENIZATION   ]]--
 
 ---@param inpstr lux_inputstream
 ---@param grammar Grammar
