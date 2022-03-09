@@ -341,7 +341,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                 end
                 self:insertToken(type, name, position)
                 -- print("word " .. name .. "|")
-                inpstr:advance(pos)
+                inpstr:advance(pos-1)
             end
 
         elseif next_char:match("[%d.]") then -- Numbers
