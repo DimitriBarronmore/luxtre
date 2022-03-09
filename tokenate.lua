@@ -311,6 +311,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         if status == false then
             break
         end
+        local check_symbol = false
 
         -- local this_line = inpstr.lines[inpstr.current_line]
         local next_char, position = inpstr:peek(1)
@@ -345,7 +346,12 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
 
         elseif next_char:match("[%d.]") then -- Numbers
             local postdecimal = false
-            if next_char:match("%.") then postdecimal = true end
+            local has_numbers = false
+            if next_char:match("%.") then
+                postdecimal = true
+            else
+                has_numbers = true
+            end
             local pos = 1
             local continue = true
             local malformed = false
@@ -360,16 +366,21 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                     else
                         malformed = true
                     end
+                elseif char:match("%d") then
+                    has_numbers = true
                 elseif not char:match("%d") then
                     break
                 end
             end
-            if malformed then  -- malformed number error
+            if malformed and has_numbers then  -- malformed number error
                 local errmsg = ("malformed number '%s'"):format(inpstr:peekTo(pos-1))
                 inpstr:throw(errmsg, position)
+            elseif not has_numbers then
+                check_symbol = true
+            elseif not malformed and has_numbers then
+                self:insertToken("number", inpstr:peekTo(pos-1), position)
+                inpstr:advance(pos-1)
             end
-            self:insertToken("number", inpstr:peekTo(pos-1), position)
-            inpstr:advance(pos-1)
 
 
         elseif next_char:match("['\"]") then -- single-line strings
@@ -398,8 +409,9 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             elseif status == false then
                 inpstr:throw("unterminated multiline string", position)
             elseif status == nil then
-                self:insertToken("symbol", "[", position)
-                inpstr:advance()
+                check_symbol = true
+                -- self:insertToken("symbol", "[", position)
+                -- inpstr:advance()
             end
 
         elseif inpstr:peekTo(2) == "--" then -- comments
@@ -415,9 +427,22 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
 
 
         else
-            position = position or {}
-            print(next_char, position[1], position[2])
-            inpstr:advance()
+            check_symbol = true
+        end
+        if check_symbol then
+            local value = next_char
+            local advance_to = 1
+            for _,oper in ipairs(grammar._operators) do
+                if inpstr:peekTo(oper:len()) == oper then
+                    value = oper
+                    advance_to = oper:len()
+                    break
+                end
+            end
+            -- position = position or {}
+            -- print(next_char, position[1], position[2])
+            self:insertToken("symbol", value, position)
+            inpstr:advance(advance_to)
         end
     end
 end
