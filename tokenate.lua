@@ -395,16 +395,19 @@ local function handle_directive(tokstr, inpstr, position)
         local args = {}
         local used_args = {}
         if type == "complex" then -- grab args
-            -- TODO: un-duplicate this code with the other arg-grabbing function
             chars = {}
             local postspace = false
+            local postvararg = false
+            local postchar = false
             while true do
                 inpstr:advance()
-
                 local char, position = inpstr:peek()
                 if char == nil then
                     inpstr:throw("unterminated argument list", position)
                 elseif char == "," then
+                    if postvararg then
+                        inpstr:throw("unexpected character ',' after '...'", position)
+                    end
                     local fullarg = table.concat(chars)
                     if used_args[fullarg] then
                         inpstr:throw("argument name used multiple times", position)
@@ -413,6 +416,7 @@ local function handle_directive(tokstr, inpstr, position)
                     used_args[fullarg] = true
                     chars = {}
                     postspace = false
+                    postchar = false
                 elseif char == ')' then
                     local fullarg = table.concat(chars)
                     if used_args[fullarg] then
@@ -424,6 +428,10 @@ local function handle_directive(tokstr, inpstr, position)
                     break
 
                 elseif char:match("[%a%d_]") then
+                    postchar = true
+                    if postvararg then
+                        inpstr:throw(("unexpected character '%s' after '...'"):format(char), position)
+                    end
                     if not postspace then
                         table.insert(chars, char)
                     else
@@ -433,11 +441,16 @@ local function handle_directive(tokstr, inpstr, position)
                     if #chars > 0 then
                         postspace = true
                     end
+                elseif inpstr:peekTo(3) == "..." and postchar == false then
+                    postvararg = true
+                    table.insert(args, "...")
+                    inpstr:advance(2)
                 else
                     inpstr:throw(("unexpected character '%s' in argument name"):format(char), position)
                 end
             end
         end
+        -- print("args;", unpack(args))
 
         chars = {}
         -- if type == "simple" then --- grab result
@@ -489,7 +502,12 @@ local function handle_macro(tokstr, inpstr, name, position)
         local args = grab_args(inpstr, position)
         local outstring = macrodef.result
         for i,arg in ipairs(macrodef.args) do
-            outstring = outstring:gsub(arg, args[i] or "")
+            if arg == "..." then
+                local remaining = {unpack(args, i)}
+                outstring = outstring:gsub("%.%.%.", table.concat(remaining, ", "))
+            else
+                outstring = outstring:gsub(arg, args[i] or "")
+            end
         end
         inpstr:splice(outstring)
     end
