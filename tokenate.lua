@@ -312,6 +312,25 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             self:insertToken("number", inpstr:peekTo(pos-1), position)
             inpstr:advance(pos-1)
 
+
+        elseif next_char:match("['\"]") then -- single-line strings
+            local quotetype = '"'
+            if next_char == "'" then
+                quotetype = "'"
+            end
+            local pos = 1
+            while true do
+                pos = pos + 1
+                local char = inpstr:peek(pos)
+                if char == nil then
+                    inpstr:throw("unfinished string", position)
+                elseif char == quotetype and inpstr:peek(pos-1) ~= [[\]] then
+                    self:insertToken("string", inpstr:peekTo(pos), position)
+                    inpstr:advance(pos)
+                    break
+                end
+            end
+
         else
             position = position or {}
             print(next_char, position[1], position[2])
