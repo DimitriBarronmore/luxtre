@@ -255,6 +255,7 @@ local function handle_multilinestr(pos, inpstr)
             if passedeqs == true then
                 if inpstr:peek(eqcount + 2) == "]" then
                     table.insert(chars, (inpstr:peekTo(eqcount + 2)) )
+                    inpstr:advance(eqcount + 2)
                     return true, table.concat(chars)
                 else
                     table.insert(chars, char)
