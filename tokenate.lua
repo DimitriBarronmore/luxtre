@@ -301,8 +301,6 @@ local function handle_macro(tokstr, inpstr, name, position)
             end
             isnewline = false
             char = inpstr:peek()
-            print("cha", tostring(char))
-            print("chtb",table.concat(chars))
             if char == nil then
                 inpstr:nextLine()
                 if inpstr.current_line > #inpstr.lines then
