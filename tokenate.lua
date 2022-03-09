@@ -394,11 +394,13 @@ local function directive__define(inpstr, tokstr)
                 postchar = false
             elseif char == ')' then
                 local fullarg = table.concat(chars)
-                if used_args[fullarg] then
-                    inpstr:throw("argument name used multiple times", position)
+                if fullarg ~= "" then
+                    if used_args[fullarg] then
+                        inpstr:throw("argument name used multiple times", position)
+                    end
+                    table.insert(args, fullarg)
+                    used_args[fullarg] = true
                 end
-                table.insert(args, fullarg)
-                used_args[fullarg] = true
                 inpstr:advance()
                 break
 
