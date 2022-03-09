@@ -197,52 +197,6 @@ local function skip_to_significant(inpstr)
     end
 end
 
-local function handle_directive(inpstr, position)
-    print("directive here", position[1], position[2])
-    inpstr:nextLine()
-end
-
-local function handle_macro(tokstr, inpstr, name)
-    -- print("unhandled macro " .. name)
-    local macrodef = tokstr.macros[name]
-    if macrodef.type == "simple" then
-        inpstr:advance(name:len())
-        inpstr:splice(macrodef.result)
-    else
-        print("unhandled complex macro " .. name)
-        inpstr:advance(name:len())
-    end
-                --    if macrodef.type == "simple" then
-                --     --ignore the word; splice in more text
-                --     inpstr:splice(macrodef.result)
-                --     goto continue
-                --    elseif macrodef.type == "complex" then
-                --        --find arguments and use them
-                --        local after_word = position[2]+#name
-                --        print(after_word)
-                --        local s2, e2, in_parens = string.find(this_line, " *(%b())")
-                --        print(position[1], s2)
-                --         if s2 == after_word then
-                --             inpstr:consume(e2-s2)
-                --             print(in_parens)
-                --             in_parens = in_parens:sub(2,-2)
-                --             local args = {}
-                --             -- for arg in in_parens:gmatch("[^|]*[^\\|]|?") do
-                --             for arg in in_parens:gmatch("[^|]*|?") do
-                --                 table.insert(args, arg:match("[^|]*"))
-                --             end
-                --             print("args",table.concat(args, ","))
-                --             print("splicoe", macrodef.result:format(unpack(args)))
-                --             inpstr:splice(macrodef.result:format(unpack(args)))
-                --             goto continue
-                --         else
-                --             --error, no parens found
-                --             print("no parens found for complex macro")
-                --             goto continue
-                --         end
-                --    end
-end
-
 local function handle_string(inpstr)
     local quotetype = '"'
     if inpstr:peek() == "'" then
@@ -321,6 +275,75 @@ local function handle_multilinestr(pos, inpstr)
     end
 end
 
+local function handle_directive(inpstr, position)
+    print("directive here", position[1], position[2])
+    inpstr:nextLine()
+end
+
+local function handle_macro(tokstr, inpstr, name, position)
+    -- print("unhandled macro " .. name)
+    local macrodef = tokstr.macros[name]
+    if macrodef.type == "simple" then
+        inpstr:advance(name:len())
+        inpstr:splice(macrodef.result)
+    else
+        inpstr:advance(name:len())
+        local char = inpstr:peek()
+        if not char == "(" then
+            inpstr:throw("macro " .. name .. " requires arguments", position)
+        end
+        local args = {}
+        local chars = {}
+        local isnewline = false
+        while true do
+            if not isnewline then
+                inpstr:advance()
+            end
+            isnewline = false
+            char = inpstr:peek()
+            print("cha", tostring(char))
+            print("chtb",table.concat(chars))
+            if char == nil then
+                inpstr:nextLine()
+                if inpstr.current_line > #inpstr.lines then
+                    inpstr:throw("unterminated macro argument list", position)
+                end
+                isnewline = true
+            elseif char:match("['\"]") then
+                local status, arg = handle_string(inpstr)
+                if status == false then
+                    inpstr:throw("unfinished string", position)
+                elseif status == true then
+                    table.insert(chars, arg)
+                    inpstr:advance(arg:len()-1)
+                end
+            elseif char == "[" then
+                local status, arg = handle_multilinestr(1, inpstr)
+                if status == true then
+                    table.insert(chars, arg)
+                elseif status == false then
+                    inpstr:throw("unterminated multiline string", position)
+                elseif status == nil then
+                    table.insert(chars, arg)
+                end
+            elseif char == "," then
+                local fullarg = table.concat(chars)
+                table.insert(args, fullarg)
+                chars = {}
+            elseif char == ')' then
+                local fullarg = table.concat(chars)
+                table.insert(args, fullarg)
+                inpstr:advance()
+                break
+            else
+                table.insert(chars, char)
+            end
+        end
+        local outstring = macrodef.result:format(unpack(args))
+        inpstr:splice(outstring)
+    end
+end
+
 
 ---@param inpstr lux_inputstream
 ---@param grammar Grammar
@@ -354,7 +377,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             local name = inpstr:peekTo(pos-1)
             local type = "name"
             if self.macros[name] then
-                handle_macro(self, inpstr, name)
+                handle_macro(self, inpstr, name, position)
             else
                 if grammar._keywords[name] then
                     type = "keyword"
