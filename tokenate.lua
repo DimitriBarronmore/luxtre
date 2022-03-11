@@ -93,8 +93,9 @@ end
 --shoves the given string into the input text
 function inputstream_base:splice(text)
     local current_line = self.lines[self.current_line]
-    local before_line = current_line:sub(1, self.current_index)
+    local before_line = current_line:sub(1, self.current_index -1)
     local after_line = current_line:sub(self.current_index, -1)
+    print("splice", before_line, after_line)
     self.lines[self.current_line] = table.concat({before_line, text, after_line}, " ")
 end
 
@@ -183,12 +184,14 @@ end
 --[[   MACRO MAKING   ]]--
 
 function tokenstream_base:create_macro(name, result, complex)
-    local macro = {type = "simple", result = result}
+    local macro = {type = "simple", name = name, result = result}
     if complex then
         macro.type = "complex"
         macro.args = complex
     end
-    self.macros[name] = macro
+    -- self.macros[name] = macro
+    table.insert(self.macros, macro)
+    table.sort(self.macros, function(a,b) return #b.name < #a.name end)
 end
 
 
@@ -356,13 +359,14 @@ local function directive__define(inpstr, tokstr)
             end
         elseif char == nil then
             inpstr:throw("unfinished macro definition", position)
-        elseif char:match("[%a%d_]") then
-            table.insert(chars, char)
+        -- elseif char:match("[%a%d_]") then
+            -- table.insert(chars, char)
         elseif char == "(" then
             type = "complex"
             break
         else
-        inpstr:throw(("invalid character '%s' in macro definition"):format(char), position)
+        -- inpstr:throw(("invalid character '%s' in macro definition"):format(char), position)
+        table.insert(chars, char)
         end
     end
     local macroname = table.concat(chars)
@@ -455,6 +459,7 @@ local function directive__define(inpstr, tokstr)
                 inpstr:throw("unfinished macro definition", position)
             else
                 local result = table.concat(chars)
+                if result == "<void>" then result = "" end
                 if type == "complex" then
                     tokstr:create_macro(macroname, result, args)
                 else
@@ -509,11 +514,17 @@ local function handle_directive(tokstr, inpstr, position)
 
 end
 
-local function handle_macro(tokstr, inpstr, name, position)
-    local macrodef = tokstr.macros[name]
+local function handle_macro(tokstr, inpstr, macrodef, position)
+    -- local macrodef = tokstr.macros[name]
+    local name = macrodef.name
     if macrodef.type == "simple" then
+        if macrodef.result:find(macrodef.name) then
+            inpstr:throw("recursive macro", position)
+        end
         inpstr:advance(name:len())
-        inpstr:splice(macrodef.result)
+        if macrodef.result ~= "" then
+            inpstr:splice(macrodef.result)
+        end
     else
         inpstr:advance(name:len())
         local char, position = inpstr:peek()
@@ -534,10 +545,41 @@ local function handle_macro(tokstr, inpstr, name, position)
                 outstring = outstring:gsub(arg, args[i] or "")
             end
         end
-        inpstr:splice(outstring)
+        if outstring:find(macrodef.name) then
+            inpstr:throw("recursive macro", position)
+        end
+        if outstring ~= "" then
+            inpstr:splice(outstring)
+        end
     end
 end
 
+local function iterate_macros(tokstr, inpstr)
+local check_macros = true
+    while check_macros do -- check macros
+        -- print("loop")
+        if #tokstr.macros > 0 then
+            for i, macro in ipairs(tokstr.macros) do
+                -- print(i, macro.name)
+                local chars, pos = inpstr:peekTo(#macro.name)
+                -- print(chars)
+                if chars == macro.name then
+                    -- print "condsucc"
+                    handle_macro(tokstr, inpstr, macro, pos)
+                    return true, macro.name
+                else
+                    -- print "condfailed"
+                    if i == #tokstr.macros then
+                        check_macros = false
+                    end
+                end
+            end
+        else
+            -- print "no macros"
+            return false
+        end
+    end
+end
 
 --[[   TOKENIZATION   ]]--
 
@@ -548,15 +590,24 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
     while true do
         local status = skip_to_significant(inpstr)
         if status == false then
-            break
+            return
         end
         local check_symbol = false
+
+        status, mname = iterate_macros(self, inpstr)
+
+        -- status = skip_to_significant(inpstr)
+        -- if status == false then
+        --     return
+        -- end
 
         -- local this_line = inpstr.lines[inpstr.current_line]
         local next_char, position = inpstr:peek(1)
 
-
-        if next_char == "#" and position[2] == 1 then -- Directive
+        if status == true then
+            --early return
+            print("early return; macro found", mname)
+        elseif next_char == "#" and position[2] == 1 then -- Directive
             handle_directive(self, inpstr, position)
 
         elseif next_char:match("[%a_]") then -- Name / Macros / Keyword
@@ -572,16 +623,16 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             end
             local name = inpstr:peekTo(pos-1)
             local type = "name"
-            if self.macros[name] then
-                handle_macro(self, inpstr, name, position)
-            else
+            -- if self.macros[name] then
+            --     handle_macro(self, inpstr, name, position)
+            -- else
                 if grammar._keywords[name] then
                     type = "keyword"
                 end
                 self:insertToken(type, name, position)
                 -- print("word " .. name .. "|")
                 inpstr:advance(pos-1)
-            end
+            -- end
 
         elseif next_char:match("[%d.]") then -- Numbers
             local postdecimal = false
@@ -659,6 +710,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             check_symbol = true
         end
         if check_symbol then
+            print(string.byte(next_char))
             local value = next_char
             local advance_to = 1
             for _,oper in ipairs(grammar._operators) do
