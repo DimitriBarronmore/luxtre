@@ -95,8 +95,7 @@ function inputstream_base:splice(text)
     local current_line = self.lines[self.current_line]
     local before_line = current_line:sub(1, self.current_index -1)
     local after_line = current_line:sub(self.current_index, -1)
-    print("splice", before_line, after_line)
-    self.lines[self.current_line] = table.concat({before_line, text, after_line}, " ")
+    self.lines[self.current_line] = table.concat({before_line, text, after_line}, "")
 end
 
 
@@ -594,7 +593,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         end
         local check_symbol = false
 
-        status, mname = iterate_macros(self, inpstr)
+        status = iterate_macros(self, inpstr)
 
         -- status = skip_to_significant(inpstr)
         -- if status == false then
@@ -606,7 +605,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
 
         if status == true then
             --early return
-            print("early return; macro found", mname)
+
         elseif next_char == "#" and position[2] == 1 then -- Directive
             handle_directive(self, inpstr, position)
 
@@ -710,7 +709,6 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             check_symbol = true
         end
         if check_symbol then
-            print(string.byte(next_char))
             local value = next_char
             local advance_to = 1
             for _,oper in ipairs(grammar._operators) do
