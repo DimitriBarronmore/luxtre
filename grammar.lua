@@ -1,4 +1,7 @@
 --[[
+
+  RULES AND EARLEY ITEMS
+
 rule structure:
   terminals:
     {type = "match_type", value = "typename"}
@@ -6,11 +9,12 @@ rule structure:
     {type = "match_syms", value = "..."}
   nonterminals:
     {type = "match_rule", value = "rulename"}
-]]
+
+--]]
 
 local function generate_pattern(str, grammar)
     local split_str = {}
-    for w in string.gmatch(str, "%S+") do
+    for w in string.gmatch(tostring(str), "%S+") do
         table.insert(split_str, w)
     end
 
@@ -63,39 +67,52 @@ grammar:
 local grammar_core = {}
 grammar_core.__index = grammar_core
 
+local anon_func = function() end
 
-local add_rule = function(gram, name, rule, post)
-  if not gram._list[name] then
-    gram._list[name] = {}
+---@param name string
+---@param rule string
+---@param post? function | nil
+---Add a rule to the grammar.
+function grammar_core:addRule(name, rule, post)
+  if type(post) ~= "function" and post ~= nil then
+    error("invalid argument: expected nil or function, got " .. type(post), 2)
+  elseif post == nil then
+    post = anon_func
   end
-  table.insert(gram._list[name], {generate_pattern(rule, gram), post})
+  if not self._list[name] then
+    self._list[name] = {}
+  end
+  table.insert(self._list[name], {generate_pattern(rule, self), post})
 end
 
 ---@param input string | table
----@param rule? string
----@param post? function
---Add one or more rules to the grammar.
---If the first argument is a table of tables, the elements of each sub-table are used as arguments for individual calls.
-function grammar_core:addRules(input, rule, post)
+--Add multiple rules to the grammar.
+--The elements of each sub-table are used as arguments for individual calls.
+function grammar_core:addRules(input)
   if type(input) == "table" then
     for _,v in ipairs(input) do
-      add_rule(self, v[1], v[2], v[3])
+      self:addRule(v[1], v[2], v[3])
     end
-  elseif type(input) == "string" then
-    add_rule(self, input, rule, post)
   else
-    error("first argument must be a string or list of rules",2)
+    error("argument must be a string or list of rules",2)
   end
 end
 
----@param keyw string | table
---Add one or more keywords to the grammar.
---If given a table of strings, all keywords will be added.
-function grammar_core:addKeywords(keyw)
-  if type(keyw) == "string" then
-    self._keywords[keyw] = true
-  elseif type(keyw) == "table" then
-    for _,v in ipairs(keyw) do
+---@param keyword string
+--Add a keyword to the grammar.
+function grammar_core:addKeyword(keyword)
+  if type(keyword) == "string" then
+    self._keywords[keyword] = true
+  else
+    error("given argument must be a string", 2)
+  end
+end
+
+---@param keywords table
+--Add multiple keywords to the grammar.
+function grammar_core:addKeywords(keywords)
+if type(keywords) == "table" then
+    for _,v in ipairs(keywords) do
       if type(v) == "string" then
         self._keywords[v] = true
       else
@@ -103,19 +120,25 @@ function grammar_core:addKeywords(keyw)
       end
     end
   else
-    error("given argument must be a string or a list of strings",2)
+    error("given argument must be a list of strings",2)
   end
 end
 
----@param oper string | table
---Add one or more multi-character operators to the grammar.
---If given a table of strings, all operators will be added.
-function grammar_core:addOperators(oper)
-  if type(oper) == "string" then
-    table.insert(self._operators, oper)
+---@param operator string
+function grammar_core:addOperator(operator)
+  if type(operator) == "string" then
+    table.insert(self._operators, operator)
     table.sort(self._operators, function(a,b) return #b < #a end)
-  elseif type(oper) == "table" then
-    for _,v in ipairs(oper) do
+  else
+    error("given argument must be a string",2)
+  end
+end
+
+---@param operators table
+--Add several multi-character operators to the grammar.
+function grammar_core:addOperators(operators)
+if type(operators) == "table" then
+    for _,v in ipairs(operators) do
       if type(v) == "string" then
         table.insert(self._operators, v)
       else
@@ -124,9 +147,12 @@ function grammar_core:addOperators(oper)
     end
     table.sort(self._operators, function(a,b) return #b < #a end)
   else
-    error("given argument must be a string or a list of strings",2)
+    error("given argument must be a list of strings",2)
   end
 end
+
+
+
 
 ---@param label string
 --Prints all the keywords, operators, and rules contained in the grammar to stdout.
@@ -135,7 +161,7 @@ function grammar_core:_debug(label)
   print("dumping grammar " .. final_label)
   print("---keywords---")
   for i,v in pairs(self._keywords) do
-    print(i,v)
+    print(i)
   end
   print("---operators---")
   for i,v in ipairs(self._operators) do
