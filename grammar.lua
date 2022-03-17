@@ -1,7 +1,5 @@
 --[[
 
-  RULES AND EARLEY ITEMS
-
 rule structure:
   terminals:
     {type = "match_type", value = "typename"}
@@ -67,17 +65,13 @@ grammar:
 local grammar_core = {}
 grammar_core.__index = grammar_core
 
-local anon_func = function() end
-
 ---@param name string
 ---@param rule string
 ---@param post? function | nil
 ---Add a rule to the grammar.
 function grammar_core:addRule(name, rule, post)
   if type(post) ~= "function" and post ~= nil then
-    error("invalid argument: expected nil or function, got " .. type(post), 2)
-  elseif post == nil then
-    post = anon_func
+    error("invalid argument: expected nil or function, got " .. type(post))
   end
   if not self._list[name] then
     self._list[name] = {}
