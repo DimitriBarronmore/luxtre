@@ -180,7 +180,21 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
       elseif nextsym.type == "match_rule" then -- prediction
         print("\nattempting prediction")
-        set:predict_items(grammar, nextsym.value)
+        
+        local precompleted = false
+        for _, compitem in ipairs(array[current_set].complete) do
+          if compitem.result == nextsym.value then
+            precompleted = true
+            break
+          end
+        end
+        if precompleted then
+          local new_item = item:clone()
+          new_item:advance()
+          array:add_to(current_set, new_item)
+        else
+          set:predict_items(grammar, nextsym.value)
+        end
       else -- scan
         print("\nattempting scan")
         ---@type lux_token
