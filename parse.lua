@@ -100,24 +100,51 @@ local function new_earleyarray(grammar, tokenstr)
   return setmetatable({grammar = grammar, tokenstr = tokenstr}, earley_array_base)
 end
 
-function earley_array_base:_debug()
-  for i,set in ipairs(self) do
-    print("set " .. i .. ":")
-    local longest_result = 0
-    for _,item in ipairs(set) do
-      local len = item.result:len()
-      if len > longest_result then longest_result = len end
-    end
-
-    for j, item in ipairs(set) do
-      local tmp_concat = {}
+local function print_items_in_set(set, reverse)
+  local longest_pattern, longest_result = 0, 0
+  for i,item in ipairs(set) do
+    local rlen = item.result:len()
+    local plen = item.production_rule.pattern:len()
+    if rlen > longest_result then longest_result = rlen end
+    if plen > longest_pattern then longest_pattern = plen end
+  end
+  for i, item in ipairs(set) do
+    local tmp_concat = {}
       for w in string.gmatch(item.production_rule.pattern, "%S+") do
         table.insert(tmp_concat, w)
       end
       table.insert(tmp_concat, item.current_index, "●" )
-      local tmp_msg = ("  %s %s::>  %s"):format(item.result, string.rep(" ", longest_result - item.result:len()), table.concat(tmp_concat, " "))
+      local index
+      if reverse == true then
+        index = item.ends_at
+      else
+        index = item.begins_at
+      end
+      local tmp_msg = ("  %s %s::>  %s %s (%s)"):format(item.result, string.rep(" ", longest_result - item.result:len()), table.concat(tmp_concat, " "),
+          string.rep(" ", longest_pattern - item.production_rule.pattern:len()), index)
       print(tmp_msg)
+  end
+end
+
+local function reverse_array(array)
+  local newarray = {}
+  for i = 1, #array do
+    table.insert(newarray, {})
+
+    local compset = array[i].complete
+    for _,item in ipairs(compset) do
+      local revitem = item:clone()
+      revitem.ends_at = i
+      table.insert(newarray[item.begins_at], revitem)
     end
+  end
+  return newarray
+end
+
+function earley_array_base:_debug()
+  for i,set in ipairs(self) do
+    print("set " .. i .. ":")
+    print_items_in_set(set)
   end
   print("\n\n--complete\n")
   for i,set in ipairs(self) do
@@ -127,15 +154,11 @@ function earley_array_base:_debug()
       local len = item.result:len()
       if len > longest_result then longest_result = len end
     end
-    for j, item in ipairs(set.complete) do
-      local tmp_concat = {}
-      for w in string.gmatch(item.production_rule.pattern, "%S+") do
-        table.insert(tmp_concat, w)
-      end
-      table.insert(tmp_concat, item.current_index, "●" )
-      local tmp_msg = ("  %s %s::>  %s"):format(item.result, string.rep(" ", longest_result - item.result:len()), table.concat(tmp_concat, " "))
-      print(tmp_msg)
-    end
+  print("\n\n--reverse\n")
+  local revarray = reverse_array(self)
+  for i,set in ipairs(revarray) do
+    print("set " .. i .. ":")
+    print_items_in_set(set, true)
   end
 end
 
