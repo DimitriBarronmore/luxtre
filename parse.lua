@@ -215,7 +215,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
       elseif nextsym.type == "match_rule" then -- prediction
         print("\nattempting prediction")
         
-        local precompleted = false
+        local precompleted = false -- early completion
         for _, compitem in ipairs(array[current_set].complete) do
           if compitem.result == nextsym.value then
             precompleted = true
