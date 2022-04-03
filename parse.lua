@@ -198,7 +198,6 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
       if nextsym == nil then -- completion
         print("\nattempting completion")
-        item.ends_at = current_set
         table.insert(array[current_set].complete, item)
         local startset = array[item.begins_at]
 
