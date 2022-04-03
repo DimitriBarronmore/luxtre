@@ -103,26 +103,37 @@ end
 function earley_array_base:_debug()
   for i,set in ipairs(self) do
     print("set " .. i .. ":")
+    local longest_result = 0
+    for _,item in ipairs(set) do
+      local len = item.result:len()
+      if len > longest_result then longest_result = len end
+    end
+
     for j, item in ipairs(set) do
       local tmp_concat = {}
       for w in string.gmatch(item.production_rule.pattern, "%S+") do
         table.insert(tmp_concat, w)
       end
       table.insert(tmp_concat, item.current_index, "●" )
-      local tmp_msg = ("  %s: %s ::> %s"):format(j, item.result, table.concat(tmp_concat, " "))
+      local tmp_msg = ("  %s %s::>  %s"):format(item.result, string.rep(" ", longest_result - item.result:len()), table.concat(tmp_concat, " "))
       print(tmp_msg)
     end
   end
   print("\n\n--complete\n")
   for i,set in ipairs(self) do
     print("set " .. i .. ":")
+    local longest_result = 0
+    for _,item in ipairs(set.complete) do
+      local len = item.result:len()
+      if len > longest_result then longest_result = len end
+    end
     for j, item in ipairs(set.complete) do
       local tmp_concat = {}
       for w in string.gmatch(item.production_rule.pattern, "%S+") do
         table.insert(tmp_concat, w)
       end
       table.insert(tmp_concat, item.current_index, "●" )
-      local tmp_msg = ("  %s: %s ::> %s"):format(j, item.result, table.concat(tmp_concat, " "))
+      local tmp_msg = ("  %s %s::>  %s"):format(item.result, string.rep(" ", longest_result - item.result:len()), table.concat(tmp_concat, " "))
       print(tmp_msg)
     end
   end
