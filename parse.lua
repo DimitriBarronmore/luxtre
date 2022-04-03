@@ -149,11 +149,8 @@ function earley_array_base:_debug()
   print("\n\n--complete\n")
   for i,set in ipairs(self) do
     print("set " .. i .. ":")
-    local longest_result = 0
-    for _,item in ipairs(set.complete) do
-      local len = item.result:len()
-      if len > longest_result then longest_result = len end
-    end
+    print_items_in_set(set.complete)
+  end
   print("\n\n--reverse\n")
   local revarray = reverse_array(self)
   for i,set in ipairs(revarray) do
@@ -213,7 +210,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
       elseif nextsym.type == "match_rule" then -- prediction
         print("\nattempting prediction")
-        
+
         local precompleted = false -- early completion
         for _, compitem in ipairs(array[current_set].complete) do
           if compitem.result == nextsym.value then
