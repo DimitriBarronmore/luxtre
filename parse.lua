@@ -268,7 +268,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
   else
     local hasstart = false
     for _,item in ipairs(array[#array].complete) do
-      if item.result == start_rule then
+      if item.result == start_rule and item.begins_at == 1 then
         hasstart = true
       end
     end
