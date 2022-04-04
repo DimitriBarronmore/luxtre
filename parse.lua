@@ -4,6 +4,14 @@
 
 --]]
 
+local debug = false
+
+local function log(...)
+  if debug == true then
+    print(...)
+  end
+end
+
 local export = {}
 
 ---@class earley_item
@@ -48,15 +56,15 @@ local earley_set_base = {}
 earley_set_base.__index = earley_set_base
 
 function earley_set_base:predict_items(grammar, rulename)
-  print(rulename)
+  log(rulename)
   local productions_list = grammar._list[rulename]
   if not productions_list then
     error(("rule '%s' not found in grammar"):format(rulename), 4)
   end
 
-  print( "predicting items for " .. rulename)
+  log( "predicting items for " .. rulename)
   for _,rule in ipairs(productions_list) do
-    print("attempting to predict pattern " .. rule.pattern)
+    log("attempting to predict pattern " .. rule.pattern)
     local addrule = true
     for _,item in ipairs(self) do
       if item.production_rule == rule then
@@ -65,9 +73,9 @@ function earley_set_base:predict_items(grammar, rulename)
       end
     end
     if addrule then
-      print("added to list")
+      log("added to list")
       table.insert(self, new_earleyitem(rule, rulename, self.index))
-    else print "duplicate found; item not added"
+    else log "duplicate found; item not added"
     end
   end
 end
@@ -172,36 +180,36 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
   local current_set = 1
   while true do
-    print("\n\n------")
-    print(("current set: '%s'"):format(current_set))
+    log("\n\n------")
+    log(("current set: '%s'"):format(current_set))
     ---@type earley_set
     local set = array[current_set]
     if not set then break end
 
     local current_item = 1
     while true do
-      print("\n\n=====")
-      print(("current item: '%s'"):format(current_item))
+      log("\n\n=====")
+      log(("current item: '%s'"):format(current_item))
 
       ---@type earley_item
       local item = set[current_item]
       if not item then break end
 
-      print("item: " .. item.production_rule.pattern)
+      log("item: " .. item.production_rule.pattern)
 
       -- check the next action to try
       local nextsym = item:next_symbol()
-      if nextsym then print("nextrule: " .. nextsym.type .. " " .. nextsym.value) end
+      if nextsym then log("nextrule: " .. nextsym.type .. " " .. nextsym.value) end
 
       if nextsym == nil then -- completion
-        print("\nattempting completion")
+        log("\nattempting completion")
         table.insert(array[current_set].complete, item)
         local startset = array[item.begins_at]
 
         for _, checkitem in ipairs(startset) do
           local checktoken = checkitem:next_symbol()
           if checktoken and checktoken.type == "match_rule" and checktoken.value == item.result then
-            print("completed item " .. checkitem.result .. ": " .. checkitem.production_rule["pattern"])
+            log("completed item " .. checkitem.result .. ": " .. checkitem.production_rule["pattern"])
             local new_item = checkitem:clone()
             new_item:advance()
             array:add_to(current_set, new_item)
@@ -209,7 +217,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
         end
 
       elseif nextsym.type == "match_rule" then -- prediction
-        print("\nattempting prediction")
+        log("\nattempting prediction")
 
         local precompleted = false -- early completion
         for _, compitem in ipairs(array[current_set].complete) do
@@ -226,14 +234,14 @@ function export.earley_parse(grammar, tokenstr, start_rule)
           set:predict_items(grammar, nextsym.value)
         end
       else -- scan
-        print("\nattempting scan")
+        log("\nattempting scan")
         ---@type lux_token
         local next_token = tokenstr.tokens[current_set]
-        print(nextsym.type, nextsym.value)
+        log(nextsym.type, nextsym.value)
         if not next_token then
-          print("end of input: skipped scan")
+          log("end of input: skipped scan")
         else
-          print(next_token.type, next_token.value)
+          log(next_token.type, next_token.value)
           if nextsym.type == "match_type" and nextsym.value == next_token.type
           or nextsym.type == "match_keyw" and nextsym.value == next_token.value
           or nextsym.type == "match_syms" and nextsym.value == next_token.value then
@@ -241,8 +249,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
             local new_item = item:clone()
             new_item:advance()
             array:add_to(current_set + 1, new_item)
-            print "\nscan succeeded"
-          else print "\nscan failed"
+            log "\nscan succeeded"
+          else log "\nscan failed"
           end
         end
       end
@@ -255,8 +263,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
   local success = true
   local errmsg
   if #array < #tokenstr.tokens+1 then
-    -- print('failed to parse full input')
-    -- print(#array, #tokenstr.tokens)
+    -- log('failed to parse full input')
+    -- log(#array, #tokenstr.tokens)
     local last_token = tokenstr.tokens[#array]
     success = false
     errmsg = "failed to parse full input\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
@@ -280,8 +288,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
   return array
     -- return array
   -- else
-  --   print("failed to parse full input")
-  --   print(#array, #tokenstr.tokens)
+  --   log("failed to parse full input")
+  --   log(#array, #tokenstr.tokens)
   --   return array
   -- end
 
