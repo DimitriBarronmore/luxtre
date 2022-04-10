@@ -58,7 +58,7 @@ grammar:
         {1: rule, 2: postprocessing function}
 ]]
 
----@class Grammar
+---@class lux_grammar
 ---@field _keywords table
 ---@field _operators table
 ---@field _list table
@@ -173,7 +173,7 @@ function grammar_core:_debug(label)
   end
 end
 
----@return Grammar
+---@return lux_grammar
 --Creates a blank grammar object.
 local function newGrammar()
   local output = setmetatable({}, grammar_core)
