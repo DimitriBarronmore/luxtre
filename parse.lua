@@ -232,6 +232,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
           end
         end
         if precompleted then
+          log("precompleted")
           local new_item = item:clone()
           new_item:advance()
           array:add_to(current_set, new_item)
