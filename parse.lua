@@ -12,6 +12,9 @@ local function log(...)
   end
 end
 
+---[[ Earley Items ]]---
+
+
 local export = {}
 
 ---@class earley_item
@@ -49,6 +52,10 @@ local function new_earleyitem(production_rule, result, begins_at)
   return setmetatable(tab, earley_item_base)
 end
 
+
+--- [[ Earley Sets ]] ---
+
+
 ---@class earley_set
 ---@field complete earley_item[]
 ---@field index number
@@ -84,6 +91,10 @@ local function new_earleyset(index)
   return setmetatable({complete = {}, index = index}, earley_set_base)
 end
 
+
+--- [[ Earley Arrays ]] ---
+
+
 ---@class earley_array
 ---@field grammar lux_grammar
 ---@field tokenstr lux_tokenstream
@@ -107,6 +118,25 @@ end
 local function new_earleyarray(grammar, tokenstr)
   return setmetatable({grammar = grammar, tokenstr = tokenstr}, earley_array_base)
 end
+
+local function reverse_array(array)
+  local newarray = {}
+  for i = 1, #array do
+    table.insert(newarray, {})
+
+    local compset = array[i].complete
+    for _,item in ipairs(compset) do
+      local revitem = item:clone()
+      revitem.ends_at = i
+      table.insert(newarray[item.begins_at], revitem)
+    end
+  end
+  return newarray
+end
+
+
+--- [[ Array Debug ]] ---
+
 
 local function print_items_in_set(set, reverse)
   local longest_pattern, longest_result = 0, 0
@@ -134,20 +164,6 @@ local function print_items_in_set(set, reverse)
   end
 end
 
-local function reverse_array(array)
-  local newarray = {}
-  for i = 1, #array do
-    table.insert(newarray, {})
-
-    local compset = array[i].complete
-    for _,item in ipairs(compset) do
-      local revitem = item:clone()
-      revitem.ends_at = i
-      table.insert(newarray[item.begins_at], revitem)
-    end
-  end
-  return newarray
-end
 
 function earley_array_base:_debug()
   for i,set in ipairs(self) do
@@ -167,7 +183,11 @@ function earley_array_base:_debug()
   end
 end
 
--- function earley_array_base:
+
+
+-- [[ Earley Recognizer & Parse Extractor ]] --
+
+
 local function testscan(nextsym, next_token)
   return (nextsym.type == "match_type" and nextsym.value == next_token.type)
       or (nextsym.type == "match_keyw" and nextsym.value == next_token.value)
@@ -198,7 +218,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
       ---@type earley_item
       local item = set[current_item]
-      if not item then break end
+      if not item then log "end of set" break end
 
       log("item: " .. item.production_rule.pattern)
 
