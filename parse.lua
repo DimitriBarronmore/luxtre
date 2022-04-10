@@ -168,6 +168,11 @@ function earley_array_base:_debug()
 end
 
 -- function earley_array_base:
+local function testscan(nextsym, next_token)
+  return (nextsym.type == "match_type" and nextsym.value == next_token.type)
+      or (nextsym.type == "match_keyw" and nextsym.value == next_token.value)
+      or (nextsym.type == "match_syms" and nextsym.value == next_token.value)
+end
 
 --big parser
 function export.earley_parse(grammar, tokenstr, start_rule)
@@ -242,9 +247,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
           log("end of input: skipped scan")
         else
           log(next_token.type, next_token.value)
-          if nextsym.type == "match_type" and nextsym.value == next_token.type
-          or nextsym.type == "match_keyw" and nextsym.value == next_token.value
-          or nextsym.type == "match_syms" and nextsym.value == next_token.value then
+          if testscan(nextsym, next_token) then
             --successful scan
             local new_item = item:clone()
             new_item:advance()
