@@ -228,16 +228,29 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
       if nextsym == nil then -- completion
         log("\nattempting completion")
-        table.insert(array[current_set].complete, item)
-        local startset = array[item.begins_at]
+        
+        local duplicate = false
+        for _,r in ipairs(array[current_set].complete) do
+          if r.production_rule == item.production_rule
+          and r.begins_at == item.begins_at then
+            duplicate = true
+            log("duplicate completion found")
+            break
+          end
+        end
 
-        for _, checkitem in ipairs(startset) do
-          local checktoken = checkitem:next_symbol()
-          if checktoken and checktoken.type == "match_rule" and checktoken.value == item.result then
-            log("completed item " .. checkitem.result .. ": " .. checkitem.production_rule["pattern"])
-            local new_item = checkitem:clone()
-            new_item:advance()
-            array:add_to(current_set, new_item)
+        if not duplicate then
+          table.insert(array[current_set].complete, item)
+          local startset = array[item.begins_at]
+
+          for _, checkitem in ipairs(startset) do
+            local checktoken = checkitem:next_symbol()
+            if checktoken and checktoken.type == "match_rule" and checktoken.value == item.result then
+              log("completed item " .. checkitem.result .. ": " .. checkitem.production_rule["pattern"])
+              local new_item = checkitem:clone()
+              new_item:advance()
+              array:add_to(current_set, new_item)
+            end
           end
         end
 
