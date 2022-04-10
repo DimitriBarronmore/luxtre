@@ -76,7 +76,10 @@ function grammar_core:addRule(name, rule, post)
   if not self._list[name] then
     self._list[name] = {}
   end
-  table.insert(self._list[name], {generate_pattern(rule, self), post})
+  local final = generate_pattern(rule, self)
+  final.post = post
+  final.pattern = rule
+  table.insert(self._list[name], final)
 end
 
 ---@param input string | table
