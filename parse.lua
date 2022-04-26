@@ -1,9 +1,3 @@
----[[ Earley Sets & Earley Items ]]---
---[[
-
-
---]]
-
 local debug = false
 
 local function log(...)
@@ -41,6 +35,25 @@ function earley_item_base:clone()
     clone[k] = v
   end
   return setmetatable(clone, earley_item_base)
+end
+
+function earley_item_base:_debug(reverse, longest_pattern, longest_result)
+  longest_pattern = longest_pattern or 2
+  longest_result = longest_result or 2
+  local tmp_concat = {}
+  for w in string.gmatch(self.production_rule.pattern, "%S+") do
+    table.insert(tmp_concat, w)
+  end
+  table.insert(tmp_concat, self.current_index, "●" )
+  local index
+  if reverse == true then
+    index = self.ends_at
+  else
+    index = self.begins_at
+  end
+  local tmp_msg = ("  %s %s::>  %s %s (%s)"):format(self.result, string.rep(" ", longest_result - self.result:len()), table.concat(tmp_concat, " "),
+      string.rep(" ", longest_pattern - self.production_rule.pattern:len()), index)
+  return tmp_msg
 end
 
 local function new_earleyitem(production_rule, result, begins_at)
@@ -121,6 +134,8 @@ end
 
 local function reverse_array(array)
   local newarray = {}
+  newarray.grammar = array.grammar
+  newarray.tokenstr = array.tokenstr
   for i = 1, #array do
     table.insert(newarray, {})
 
@@ -147,20 +162,7 @@ local function print_items_in_set(set, reverse)
     if plen > longest_pattern then longest_pattern = plen end
   end
   for i, item in ipairs(set) do
-    local tmp_concat = {}
-      for w in string.gmatch(item.production_rule.pattern, "%S+") do
-        table.insert(tmp_concat, w)
-      end
-      table.insert(tmp_concat, item.current_index, "●" )
-      local index
-      if reverse == true then
-        index = item.ends_at
-      else
-        index = item.begins_at
-      end
-      local tmp_msg = ("  %s %s::>  %s %s (%s)"):format(item.result, string.rep(" ", longest_result - item.result:len()), table.concat(tmp_concat, " "),
-          string.rep(" ", longest_pattern - item.production_rule.pattern:len()), index)
-      print(tmp_msg)
+    print(item:_debug(reverse, longest_pattern, longest_result))
   end
 end
 
@@ -311,6 +313,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     for _,item in ipairs(array[#array].complete) do
       if item.result == start_rule and item.begins_at == 1 then
         hasstart = true
+        array.final_item = item
+        break
       end
     end
     if not hasstart then
@@ -329,6 +333,172 @@ function export.earley_parse(grammar, tokenstr, start_rule)
   --   log(#array, #tokenstr.tokens)
   --   return array
   -- end
+
+end
+
+local stackmt = {}
+stackmt.__index = stackmt
+function stackmt:pop()
+  table.remove(self, #self)
+end
+function stackmt:push(val)
+  table.insert(self, #self+1, val)
+end
+function stackmt:gettop()
+  return self[#self]
+end
+local function newstack()
+  return setmetatable({}, stackmt)
+end
+
+local function extract_rule_components(revarray, item)
+
+  local prule = item.production_rule
+  local start_index = item.begins_at
+  local end_index = item.ends_at
+  local stack = newstack()
+  local discovered = {}
+  for i = 0, #prule do
+    discovered[i] = {}
+  end
+
+  -- local current_index = 1
+  while #stack < #prule do
+    local index
+    local e_index
+    local topitem = stack:gettop()
+    if topitem then
+      if not topitem.ends_at then
+        for k,v in pairs(topitem) do print(k,v) end 
+        error("what") end
+      index = topitem.ends_at
+    else
+      index = start_index
+    end
+    if #stack == #prule - 1 then
+      e_index = end_index
+    else
+      e_index = nil
+    end
+
+    print('---')
+    local piece = prule[#stack+1]
+    print(piece.value)
+    print("stacklen " .. #stack)
+
+    if index >= end_index then
+      print("index went too far; backing up")
+      stack[#stack].discovered = {}
+      stack:pop()
+    
+    elseif piece.type == "match_rule" then
+      ---@type earley_item[]
+      print("matching rule " .. piece.value)
+      print("index " .. index)
+      local compset = revarray[index]
+      local founditem = false
+      for _, item in ipairs(compset) do
+        if not discovered[#stack][item] then
+          discovered[#stack][item] = true
+          if item.result == piece.value
+          and (e_index and item.ends_at == e_index or true) then
+            print("found item", item:_debug(true))
+            stack:push(item)
+            founditem = true
+            break
+          end
+        end
+      end
+      if not founditem then
+        print("did not find item; backing up")
+        stack[#stack].discovered = {}
+        stack:pop()
+      end
+
+    else --scan
+      local checktoken = revarray.tokenstr.tokens[index]
+      print("scanning for " .. piece.value)
+      print("chktk", checktoken)
+      print("index " .. index)
+      if testscan(piece, checktoken) then
+        stack:push({type = "scan " .. checktoken.value, ends_at = index + 1})
+        print("scan success")
+      else
+        print("scan failure; backing up")
+        stack[#stack].discovered = {}
+        stack:pop()
+      end
+    end
+
+  end
+  return stack
+end
+
+local expand_tree
+expand_tree = function (array, tree, items)
+  for i,v in ipairs(items) do
+    -- table.insert(tree, v)
+    if v._debug then --this is an item; expand
+      local nbranch = {item = v}
+      table.insert(tree, nbranch)
+      local nitems = extract_rule_components(array, v)
+      expand_tree(array, nbranch, nitems)
+    else
+      table.insert(tree,v)
+    end
+      
+  end
+end
+
+local print_items
+print_items = function(branch, indent)
+  indent = indent or 0
+  local indentstr = (" "):rep(indent)
+  for i,v in ipairs(branch) do
+    if v.item then
+      print(indentstr .. "item: " .. v.item.result)
+      -- print("item: " .. i ..  indentstr .. v.item:_debug())
+      print_items(v, indent + 4)
+    else
+      print(indentstr .. v.type)
+    end
+  end
+end
+
+function export.extract_parsetree(array)
+
+  local revarray = reverse_array(array)
+  local grammar = array.grammar
+
+
+  local search_rule = array.final_item
+  search_rule.ends_at = #array
+  local stk = extract_rule_components(revarray, search_rule)
+  print(search_rule.production_rule.pattern)
+  for i,v in ipairs(stk) do
+    print(i, v._debug and v:_debug(true) or v.type)
+  end
+
+  local tree = {}
+  expand_tree(revarray, tree, stk)
+  print("================")
+  -- for i,v in ipairs(tree) do
+  --   print(i, v.item and v.item:_debug(true) or v.type)
+  -- end
+
+  -- local stk2 = extract_rule_components(revarray, stk[1])
+  -- print("===")
+  -- print(stk[1].production_rule.pattern)
+  -- for i,v in ipairs(stk2) do
+  --   print(i, v._debug and v:_debug(true) or v.type)
+  -- end
+  for i,v in ipairs(stk) do
+    print(i, v._debug and v:_debug(true) or v.type)
+  end
+  print "===="
+  print_items(tree)
+
+
 
 end
 
