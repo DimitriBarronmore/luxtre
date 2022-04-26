@@ -158,12 +158,14 @@ end
 ---@class lux_tokenstream
 ---@field tokens lux_token[]
 ---@field macros table
+---@field _lines table
 local tokenstream_base = {}
 tokenstream_base.__index = tokenstream_base
 function export.new_tokenstream()
     local out = {}
     out.tokens = {}
     out.macros = {}
+    out._lines = {}
     return setmetatable(out, tokenstream_base)
 end
 
@@ -583,9 +585,13 @@ end
 --[[   TOKENIZATION   ]]--
 
 ---@param inpstr lux_inputstream
----@param grammar Grammar
+---@param grammar lux_grammar
 ---@return lux_tokenstream
 function tokenstream_base:tokenate_stream(inpstr, grammar)
+    for _,line in ipairs(inpstr.lines) do
+        table.insert(self._lines, line)
+    end
+
     while true do
         local status = skip_to_significant(inpstr)
         if status == false then
@@ -621,12 +627,12 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                 pos = pos + 1
             end
             local name = inpstr:peekTo(pos-1)
-            local type = "name"
+            local type = "Name"
             -- if self.macros[name] then
             --     handle_macro(self, inpstr, name, position)
             -- else
                 if grammar._keywords[name] then
-                    type = "keyword"
+                    type = "Keyword"
                 end
                 self:insertToken(type, name, position)
                 -- print("word " .. name .. "|")
@@ -667,7 +673,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             elseif not has_numbers then
                 check_symbol = true
             elseif not malformed and has_numbers then
-                self:insertToken("number", inpstr:peekTo(pos-1), position)
+                self:insertToken("Number", inpstr:peekTo(pos-1), position)
                 inpstr:advance(pos-1)
             end
 
@@ -677,7 +683,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             if status == false then
                 inpstr:throw("unfinished string", position)
             elseif status == true then
-                self:insertToken("string", str, position)
+                self:insertToken("String", str, position)
                 inpstr:advance(str:len())
             end
 
@@ -685,7 +691,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         elseif next_char == "[" then -- multiline strings
             local status, str = handle_multilinestr(1, inpstr)
             if status == true then
-                self:insertToken("string", str, position)
+                self:insertToken("String", str, position)
             elseif status == false then
                 inpstr:throw("unterminated multiline string", position)
             elseif status == nil then
@@ -718,7 +724,7 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                     break
                 end
             end
-            self:insertToken("symbol", value, position)
+            self:insertToken("Symbol", value, position)
             inpstr:advance(advance_to)
         end
     end
