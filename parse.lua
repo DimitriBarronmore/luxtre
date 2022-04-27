@@ -171,21 +171,29 @@ local function print_items_in_set(set, reverse)
 end
 
 
-function earley_array_base:_debug()
-  for i,set in ipairs(self) do
-    print("set " .. i .. ":")
-    print_items_in_set(set)
+function earley_array_base:_debug(ptype)
+  ptype = ptype or "all"
+  if ptype == "full" or ptype == "all" then
+    print("\n--full\n")
+    for i,set in ipairs(self) do
+      print("set " .. i .. ":")
+      print_items_in_set(set)
+    end
   end
-  print("\n\n--complete\n")
-  for i,set in ipairs(self) do
-    print("set " .. i .. ":")
-    print_items_in_set(set.complete)
+  if ptype == "all" or ptype == "complete" then
+    print("\n--complete\n")
+    for i,set in ipairs(self) do
+      print("set " .. i .. ":")
+      print_items_in_set(set.complete)
+    end
   end
-  print("\n\n--reverse\n")
-  local revarray = reverse_array(self)
-  for i,set in ipairs(revarray) do
-    print("set " .. i .. ":")
-    print_items_in_set(set, true)
+  if ptype == "all" or ptype == "reverse" then
+    print("\n--reverse\n")
+    local revarray = reverse_array(self)
+    for i,set in ipairs(revarray) do
+      print("set " .. i .. ":")
+      print_items_in_set(set, true)
+    end
   end
 end
 
@@ -340,6 +348,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
 
 end
 
+--- [[ AST GENERATION ]] ---
+
 local stackmt = {}
 stackmt.__index = stackmt
 function stackmt:pop()
@@ -356,7 +366,6 @@ local function newstack()
 end
 
 local function extract_rule_components(revarray, item)
-
   local prule = item.production_rule
   local start_index = item.begins_at
   local end_index = item.ends_at
@@ -368,17 +377,10 @@ local function extract_rule_components(revarray, item)
 
   -- local current_index = 1
   while #stack < #prule do
-    local index
-    local e_index
     local topitem = stack:gettop()
-    if topitem then
-      if not topitem.ends_at then
-        for k,v in pairs(topitem) do print(k,v) end 
-        error("what") end
-      index = topitem.ends_at
-    else
-      index = start_index
-    end
+    local index = topitem and topitem.ends_at or start_index
+
+    local e_index
     if #stack == #prule - 1 then
       e_index = end_index
     else
@@ -392,7 +394,7 @@ local function extract_rule_components(revarray, item)
 
     if index >= end_index then
       log("index went too far; backing up")
-      stack[#stack].discovered = {}
+      discovered[#stack] = {}
       stack:pop()
     
     elseif piece.type == "match_rule" then
@@ -407,7 +409,7 @@ local function extract_rule_components(revarray, item)
           if item.result == piece.value
           and (e_index and item.ends_at == e_index or true) then
             log("found item", item:_debug(true))
-            stack:push(item)
+            stack:push({type = "item", value = item, ends_at = item.ends_at})
             founditem = true
             break
           end
@@ -415,7 +417,7 @@ local function extract_rule_components(revarray, item)
       end
       if not founditem then
         log("did not find item; backing up")
-        stack[#stack].discovered = {}
+        discovered[#stack] = {}
         stack:pop()
       end
 
@@ -425,11 +427,11 @@ local function extract_rule_components(revarray, item)
       log("chktk", checktoken)
       log("index " .. index)
       if testscan(piece, checktoken) then
-        stack:push({type = "scan " .. checktoken.value, ends_at = index + 1})
+        stack:push({type = "scan", value = checktoken.value, ends_at = index + 1})
         log("scan success")
       else
         log("scan failure; backing up")
-        stack[#stack].discovered = {}
+        discovered[#stack] = {}
         stack:pop()
       end
     end
@@ -441,11 +443,10 @@ end
 local expand_tree
 expand_tree = function (array, tree, items)
   for i,v in ipairs(items) do
-    -- table.insert(tree, v)
-    if v._debug then --this is an item; expand
-      local nbranch = {item = v}
+    if v.type == "item" then
+      local nbranch = {type = "branch", value = v.value}
       table.insert(tree, nbranch)
-      local nitems = extract_rule_components(array, v)
+      local nitems = extract_rule_components(array, v.value)
       expand_tree(array, nbranch, nitems)
     else
       table.insert(tree,v)
@@ -459,12 +460,12 @@ print_items = function(branch, indent)
   indent = indent or 0
   local indentstr = (" "):rep(indent)
   for i,v in ipairs(branch) do
-    if v.item then
-      print(indentstr .. "item: " .. v.item.result)
+    if v.type == "branch" then
+      print(indentstr .. "item: " .. v.value.result)
       -- print("item: " .. i ..  indentstr .. v.item:_debug())
       print_items(v, indent + 4)
     else
-      print(indentstr .. v.type)
+      print(indentstr .. v.type .. ": " .. v.value)
     end
   end
 end
@@ -472,37 +473,15 @@ end
 function export.extract_parsetree(array)
 
   local revarray = reverse_array(array)
-  local grammar = array.grammar
-
 
   local search_rule = array.final_item
   search_rule.ends_at = #array
   local stk = extract_rule_components(revarray, search_rule)
-  print(search_rule.production_rule.pattern)
-  for i,v in ipairs(stk) do
-    print(i, v._debug and v:_debug(true) or v.type)
-  end
 
-  local tree = {}
+  local tree = {_debug = print_items}
   expand_tree(revarray, tree, stk)
-  print("================")
-  -- for i,v in ipairs(tree) do
-  --   print(i, v.item and v.item:_debug(true) or v.type)
-  -- end
-
-  -- local stk2 = extract_rule_components(revarray, stk[1])
-  -- print("===")
-  -- print(stk[1].production_rule.pattern)
-  -- for i,v in ipairs(stk2) do
-  --   print(i, v._debug and v:_debug(true) or v.type)
-  -- end
-  for i,v in ipairs(stk) do
-    print(i, v._debug and v:_debug(true) or v.type)
-  end
-  print "===="
-  print_items(tree)
-
-
+ 
+  return tree
 
 end
 
