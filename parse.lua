@@ -385,20 +385,20 @@ local function extract_rule_components(revarray, item)
       e_index = nil
     end
 
-    print('---')
+    log('---')
     local piece = prule[#stack+1]
-    print(piece.value)
-    print("stacklen " .. #stack)
+    log(piece.value)
+    log("stacklen " .. #stack)
 
     if index >= end_index then
-      print("index went too far; backing up")
+      log("index went too far; backing up")
       stack[#stack].discovered = {}
       stack:pop()
     
     elseif piece.type == "match_rule" then
       ---@type earley_item[]
-      print("matching rule " .. piece.value)
-      print("index " .. index)
+      log("matching rule " .. piece.value)
+      log("index " .. index)
       local compset = revarray[index]
       local founditem = false
       for _, item in ipairs(compset) do
@@ -406,7 +406,7 @@ local function extract_rule_components(revarray, item)
           discovered[#stack][item] = true
           if item.result == piece.value
           and (e_index and item.ends_at == e_index or true) then
-            print("found item", item:_debug(true))
+            log("found item", item:_debug(true))
             stack:push(item)
             founditem = true
             break
@@ -414,21 +414,21 @@ local function extract_rule_components(revarray, item)
         end
       end
       if not founditem then
-        print("did not find item; backing up")
+        log("did not find item; backing up")
         stack[#stack].discovered = {}
         stack:pop()
       end
 
     else --scan
       local checktoken = revarray.tokenstr.tokens[index]
-      print("scanning for " .. piece.value)
-      print("chktk", checktoken)
-      print("index " .. index)
+      log("scanning for " .. piece.value)
+      log("chktk", checktoken)
+      log("index " .. index)
       if testscan(piece, checktoken) then
         stack:push({type = "scan " .. checktoken.value, ends_at = index + 1})
-        print("scan success")
+        log("scan success")
       else
-        print("scan failure; backing up")
+        log("scan failure; backing up")
         stack[#stack].discovered = {}
         stack:pop()
       end
