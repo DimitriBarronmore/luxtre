@@ -146,6 +146,10 @@ local function reverse_array(array)
       table.insert(newarray[item.begins_at], revitem)
     end
   end
+  for _,set in ipairs(newarray) do
+    table.sort(set, function(a,b) return a.ends_at > b.ends_at end)
+  end
+
   return newarray
 end
 
