@@ -1,4 +1,4 @@
-local debug = false
+local debug = true
 
 local function log(...)
   if debug == true then
@@ -51,7 +51,7 @@ function earley_item_base:_debug(reverse, longest_pattern, longest_result)
   else
     index = self.begins_at
   end
-  local tmp_msg = ("  %s %s::>  %s %s (%s)"):format(self.result, string.rep(" ", longest_result - self.result:len()), table.concat(tmp_concat, " "),
+  local tmp_msg = ("%s %s::>  %s %s (%s)"):format(self.result, string.rep(" ", longest_result - self.result:len()), table.concat(tmp_concat, " "),
       string.rep(" ", longest_pattern - self.production_rule.pattern:len()), index)
   return tmp_msg
 end
@@ -87,7 +87,7 @@ function earley_set_base:predict_items(grammar, rulename)
     log("attempting to predict pattern " .. rule.pattern)
     local addrule = true
     for _,item in ipairs(self) do
-      if item.production_rule == rule then
+      if item.production_rule == rule and item.current_index == 1 then
         addrule = false
         break
       end
@@ -223,7 +223,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     log(("current set: '%s'"):format(current_set))
     ---@type earley_set
     local set = array[current_set]
-    if not set then break end
+    if not set then print("break due to lack of set " .. current_set) break end
 
     local current_item = 1
     while true do
@@ -320,7 +320,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     success = false
     errmsg = "failed to parse full input\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
     errmsg = errmsg .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]) .. "  <<<"
-  else
+  -- else
+  end
     local hasstart = false
     for _,item in ipairs(array[#array].complete) do
       if item.result == start_rule and item.begins_at == 1 then
@@ -333,10 +334,11 @@ function export.earley_parse(grammar, tokenstr, start_rule)
       success = false
       errmsg = "failed to obtain a complete parse"
     end
-  end
+  -- end
 
   if success == false then
-    error(errmsg)
+    -- error(errmsg)
+    print(errmsg)
   end
   return array
     -- return array
@@ -392,8 +394,8 @@ local function extract_rule_components(revarray, item)
     log(piece.value)
     log("stacklen " .. #stack)
 
-    if index >= end_index then
-      log("index went too far; backing up")
+    if index > end_index then
+      log("index went too far; backing up", index, end_index)
       discovered[#stack] = {}
       stack:pop()
     
@@ -408,7 +410,7 @@ local function extract_rule_components(revarray, item)
           discovered[#stack][item] = true
           if item.result == piece.value
           and (e_index and item.ends_at == e_index or true) then
-            log("found item", item:_debug(true))
+            log("found item", item:_debug(true), tostring(item))
             stack:push({type = "item", value = item, ends_at = item.ends_at})
             founditem = true
             break
@@ -440,33 +442,57 @@ local function extract_rule_components(revarray, item)
   return stack
 end
 
-local expand_tree
-expand_tree = function (array, tree, items)
-  for i,v in ipairs(items) do
-    if v.type == "item" then
-      local nbranch = {type = "branch", value = v.value}
-      table.insert(tree, nbranch)
-      local nitems = extract_rule_components(array, v.value)
-      expand_tree(array, nbranch, nitems)
-    else
-      table.insert(tree,v)
-    end
-      
-  end
-end
-
 local print_items
 print_items = function(branch, indent)
   indent = indent or 0
   local indentstr = (" "):rep(indent)
-  for i,v in ipairs(branch) do
+  for i,v in ipairs(branch.children) do
+    -- print("type", v.type)
     if v.type == "branch" then
-      print(indentstr .. "item: " .. v.value.result)
-      -- print("item: " .. i ..  indentstr .. v.item:_debug())
+      -- print(indentstr .. "item: " .. v.value.result)
+      print(indentstr .. v.value:_debug())
       print_items(v, indent + 4)
     else
-      print(indentstr .. v.type .. ": " .. v.value)
+      print(indentstr .. v.type .. ": " .. v.value )
     end
+  end
+end
+
+
+local expand_tree
+expand_tree = function (revarray, branch, items)
+  for _,item in ipairs(items) do
+
+    ---@type lux_ast_item
+    local newitem = {}
+    newitem.type = "leaf"
+    newitem.value = item.value
+    -- newitem.item = item
+    newitem.print = function(self) return self.value end
+
+    if item.type == "item" then
+      newitem.type = "branch"
+      newitem.print = newitem.value.production_rule.post
+      newitem.children = {}
+      local subitems = extract_rule_components(revarray, item.value)
+      if subitems then
+      expand_tree(revarray, newitem, subitems)
+      end
+    else
+      -- newitem.scan_res = item.value
+    end
+
+    table.insert(branch.children, newitem)
+
+    -- if v.type == "item" then
+    --   local nbranch = {type = "branch", value = v.value}
+    --   table.insert(tree, nbranch)
+    --   local nitems = extract_rule_components(revarray, v.value)
+    --   expand_tree(revarray, nbranch, nitems)
+    -- else
+    --   table.insert(tree,v)
+    -- end
+      
   end
 end
 
@@ -474,12 +500,30 @@ function export.extract_parsetree(array)
 
   local revarray = reverse_array(array)
 
+  ---@type earley_item
   local search_rule = array.final_item
   search_rule.ends_at = #array
-  local stk = extract_rule_components(revarray, search_rule)
 
-  local tree = {_debug = print_items}
-  expand_tree(revarray, tree, stk)
+  ---@type lux_ast
+  local tree = {
+    output = {},
+    posmap = {},
+    tree = {}
+  }
+  tree._debug = function() print_items(tree.tree) end
+  ---@type lux_ast_item
+  local root_item = { type = "branch",
+                      item = search_rule,
+                      print = search_rule.production_rule.post,
+                      children = {} }
+
+  tree.tree = root_item
+
+  local first_components = extract_rule_components(revarray, search_rule)
+
+  -- local tree = {_debug = print_items}
+
+  expand_tree(revarray, root_item, first_components)
  
   return tree
 
