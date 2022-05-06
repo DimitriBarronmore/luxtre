@@ -30,6 +30,11 @@ luxtre.dostring("return -> print('hello world')")
 local tab = {foo: 1, bar: 2, buzz: 3}
 -- >> local tab = {foo = 1, bar = 2, buzz = 3}
 
+-- Table constructors are automatically wrapped in parentheses when treated like a variable.
+{1, 2, 3}[1];  "string":rep(5)
+-- >> ({1, 2, 3})[1];  ("string"):rep(5)
+
+
 -- Augmented assignment: +=, -=, *=, /=, %=, ^=
 bar += 2 * 5 - funcall()
 -- >> bar = bar + (2 * 5 - funcall())
