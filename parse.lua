@@ -325,7 +325,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     -- log(#array, #tokenstr.tokens)
     local last_token = tokenstr.tokens[#array]
     success = false
-    errmsg = "failed to parse full input\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
+    errmsg = "unexpected token\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
     -- errmsg = errmsg .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]) .. "  <<<"
     errmsg = errmsg .. tokenstr._lines[last_token.position[1]] .. "\n"
       .. string.rep(" ", string.len(last_token.position[1] .. ":" .. last_token.position[2] .. " " .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]))) .. "^"
