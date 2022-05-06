@@ -10,6 +10,14 @@ rule structure:
 
 --]]
 
+local load_string_function
+if _VERSION > "Lua 5.1" then
+    load_string_function = load
+else
+    load_string_function = loadstring
+end
+
+
 local function generate_pattern(str, grammar)
     local split_str = {}
     for w in string.gmatch(tostring(str), "%S+") do
@@ -90,7 +98,7 @@ function grammar_core:addRule(name, rule, post)
     post = post:gsub("%$(%d)", "self.children[%1]:print()")
     local post_func = "return function(self) return " 
       .. post .. " end"
-    final.post = loadstring(post_func)()
+    final.post = load_string_function(post_func)()
   else
     final.post = generic_post
   end
