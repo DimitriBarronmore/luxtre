@@ -207,7 +207,7 @@ local function skip_to_significant(inpstr)
             if inpstr.current_line > #inpstr.lines then
                 return false
             end
-        elseif next_char == " " then
+        elseif next_char:match("%s") or next_char:match("%c") then
             inpstr:advance()
         else
             return true

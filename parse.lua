@@ -1,4 +1,9 @@
-local debug = true
+local print = print
+local ipairs = ipairs
+local pairs = pairs
+-- local table = table
+
+local debug = false
 
 local function log(...)
   if debug == true then
@@ -76,15 +81,15 @@ local earley_set_base = {}
 earley_set_base.__index = earley_set_base
 
 function earley_set_base:predict_items(grammar, rulename)
-  log(rulename)
+  -- log(rulename)
   local productions_list = grammar._list[rulename]
   if not productions_list then
     error(("rule '%s' not found in grammar"):format(rulename), 4)
   end
 
-  log( "predicting items for " .. rulename)
+  -- log( "predicting items for " .. rulename)
   for _,rule in ipairs(productions_list) do
-    log("attempting to predict pattern " .. rule.pattern)
+    -- log("attempting to predict pattern " .. rule.pattern)
     local addrule = true
     for _,item in ipairs(self) do
       if item.production_rule == rule and item.current_index == 1 then
@@ -93,9 +98,9 @@ function earley_set_base:predict_items(grammar, rulename)
       end
     end
     if addrule then
-      log("added to list")
+      -- log("added to list")
       table.insert(self, new_earleyitem(rule, rulename, self.index))
-    else log "duplicate found; item not added"
+    -- else log "duplicate found; item not added"
     end
   end
 end
@@ -214,41 +219,51 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     error(("invalid starting rule '%s'"):format(start_rule),2)
   end
 
+  grammar :_generate_nullable()
+
   local array = new_earleyarray(grammar, tokenstr)
   array:predict_in(1, start_rule) -- initial block
 
   local current_set = 1
   while true do
-    log("\n\n------")
-    log(("current set: '%s'"):format(current_set))
+    -- log("\n\n------")
+    -- log(("current set: '%s'"):format(current_set))
     ---@type earley_set
     local set = array[current_set]
-    if not set then print("break due to lack of set " .. current_set) break end
+    if not set then
+      -- log("break due to lack of set " .. current_set)
+      break
+    end
 
     local current_item = 1
     while true do
-      log("\n\n=====")
-      log(("current item: '%s'"):format(current_item))
+      -- log("\n\n=====")
+      -- log(("current item: '%s'"):format(current_item))
 
       ---@type earley_item
       local item = set[current_item]
-      if not item then log "end of set" break end
+      if not item then
+        -- log "end of set"
+        break 
+      end
 
-      log("item: " .. item.production_rule.pattern)
+      -- log("item: " .. item.production_rule.pattern)
 
       -- check the next action to try
       local nextsym = item:next_symbol()
-      if nextsym then log("nextrule: " .. nextsym.type .. " " .. nextsym.value) end
+      -- if nextsym then
+      --   -- log("nextrule: " .. nextsym.type .. " " .. nextsym.value) 
+      -- end
 
       if nextsym == nil then -- completion
-        log("\nattempting completion")
+        -- log("\nattempting completion")
         
         local duplicate = false
         for _,r in ipairs(array[current_set].complete) do
           if r.production_rule == item.production_rule
           and r.begins_at == item.begins_at then
             duplicate = true
-            log("duplicate completion found")
+            -- log("duplicate completion found")
             break
           end
         end
@@ -260,7 +275,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
           for _, checkitem in ipairs(startset) do
             local checktoken = checkitem:next_symbol()
             if checktoken and checktoken.type == "match_rule" and checktoken.value == item.result then
-              log("completed item " .. checkitem.result .. ": " .. checkitem.production_rule["pattern"])
+              -- log("completed item " .. checkitem.result .. ": " .. checkitem.production_rule["pattern"])
               local new_item = checkitem:clone()
               new_item:advance()
               array:add_to(current_set, new_item)
@@ -269,30 +284,32 @@ function export.earley_parse(grammar, tokenstr, start_rule)
         end
 
       elseif nextsym.type == "match_rule" then -- prediction
-        log("\nattempting prediction")
+        -- log("\nattempting prediction")
 
-        local precompleted = false -- early completion
-        for _, compitem in ipairs(array[current_set].complete) do
-          if compitem.result == nextsym.value then
-            precompleted = true
-            break
-          end
-        end
-        if precompleted then
-          log("precompleted")
+        -- local precompleted = false -- early completion
+        -- for _, compitem in ipairs(array[current_set].complete) do
+        --   -- if compitem.result == nextsym.value then
+        --     precompleted = true
+        --     break
+        --   end
+        -- end
+        set:predict_items(grammar, nextsym.value)
+        -- if precompleted then
+        if grammar._nullable[nextsym.value] then
+          -- log("precompleted")
           local new_item = item:clone()
           new_item:advance()
           array:add_to(current_set, new_item)
-        else
-          set:predict_items(grammar, nextsym.value)
+        -- else
         end
+        -- end
       else -- scan
-        log("\nattempting scan")
+        -- log("\nattempting scan")
         ---@type lux_token
         local next_token = tokenstr.tokens[current_set]
-        log(nextsym.type, nextsym.value)
+        -- log(nextsym.type, nextsym.value)
         if not next_token then
-          log("end of input: skipped scan")
+          -- log("end of input: skipped scan")
         else
           log(next_token.type, next_token.value)
           if testscan(nextsym, next_token) then
@@ -300,8 +317,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
             local new_item = item:clone()
             new_item:advance()
             array:add_to(current_set + 1, new_item)
-            log "\nscan succeeded"
-          else log "\nscan failed"
+            -- log "\nscan succeeded"
+          -- else log "\nscan failed"
           end
         end
       end
@@ -320,8 +337,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     success = false
     errmsg = "failed to parse full input\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
     errmsg = errmsg .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]) .. "  <<<"
-  -- else
-  end
+  else
+  -- end
     local hasstart = false
     for _,item in ipairs(array[#array].complete) do
       if item.result == start_rule and item.begins_at == 1 then
@@ -334,14 +351,14 @@ function export.earley_parse(grammar, tokenstr, start_rule)
       success = false
       errmsg = "failed to obtain a complete parse"
     end
-  -- end
+  end
 
   if success == false then
-    -- error(errmsg)
-    print(errmsg)
+    error(errmsg)
+    -- print(errmsg)
   end
-  return array
-    -- return array
+  -- return array
+    return array
   -- else
   --   log("failed to parse full input")
   --   log(#array, #tokenstr.tokens)
@@ -355,7 +372,9 @@ end
 local stackmt = {}
 stackmt.__index = stackmt
 function stackmt:pop()
+  local val = self[#self]
   table.remove(self, #self)
+  return val
 end
 function stackmt:push(val)
   table.insert(self, #self+1, val)
@@ -367,79 +386,87 @@ local function newstack()
   return setmetatable({}, stackmt)
 end
 
+local function grab_children(leaf)
+  local children = {}
+  while leaf[3] do
+    table.insert(children, 1, leaf[4])
+    leaf = leaf[3]
+  end
+  return children
+end
+
 local function extract_rule_components(revarray, item)
   local prule = item.production_rule
-  local start_index = item.begins_at
-  local end_index = item.ends_at
+  local start_node = item.begins_at
+  local end_node = item.ends_at
   local stack = newstack()
   local discovered = {}
-  for i = 0, #prule do
-    discovered[i] = {}
+
+  if #prule == 0 then
+    return {}
   end
 
-  -- local current_index = 1
-  while #stack < #prule do
-    local topitem = stack:gettop()
-    local index = topitem and topitem.ends_at or start_index
+  stack:push({start_node, 1, nil, {type = "root", value = "nil"}}) -- node, depth
+  while #stack > 0 do
+    local current_node = stack:pop()
+    -- Get the children
+    local check_rule = prule[current_node[2]]
+    local children = {}
 
-    local e_index
-    if #stack == #prule - 1 then
-      e_index = end_index
-    else
-      e_index = nil
-    end
-
-    log('---')
-    local piece = prule[#stack+1]
-    log(piece.value)
-    log("stacklen " .. #stack)
-
-    if index > end_index then
-      log("index went too far; backing up", index, end_index)
-      discovered[#stack] = {}
-      stack:pop()
-    
-    elseif piece.type == "match_rule" then
-      ---@type earley_item[]
-      log("matching rule " .. piece.value)
-      log("index " .. index)
-      local compset = revarray[index]
-      local founditem = false
-      for _, item in ipairs(compset) do
-        if not discovered[#stack][item] then
-          discovered[#stack][item] = true
-          if item.result == piece.value
-          and (e_index and item.ends_at == e_index or true) then
-            log("found item", item:_debug(true), tostring(item))
-            stack:push({type = "item", value = item, ends_at = item.ends_at})
-            founditem = true
-            break
+    -- Edges
+    if check_rule.type == "match_rule" then
+      local node_set = revarray[current_node[1]]
+      for _, edge in ipairs(node_set) do
+        if edge.result == check_rule.value and not discovered[edge.ends_at] then
+          -- print("edge success " .. edge:_debug())
+          local new_node = edge.ends_at
+          -- print("new node: " .. new_node)
+          -- discovered[new_node] = true
+          if new_node == end_node and current_node[2] == #prule then
+            -- print("found end node " .. end_node)
+            -- print(current_node[2])
+            local info = {type = "item", value = edge}
+            return grab_children({new_node, current_node[2] + 1, current_node, info})
+          elseif current_node[2] + 1 <= #prule then
+            -- print("pushing to stack " .. edge:_debug())
+            local info = {type = "item", value = edge}
+            stack:push({new_node, current_node[2] + 1, current_node, info})
           end
         end
       end
-      if not founditem then
-        log("did not find item; backing up")
-        discovered[#stack] = {}
-        stack:pop()
-      end
 
-    else --scan
-      local checktoken = revarray.tokenstr.tokens[index]
-      log("scanning for " .. piece.value)
-      log("chktk", checktoken)
-      log("index " .. index)
-      if testscan(piece, checktoken) then
-        stack:push({type = "scan", value = checktoken.value, ends_at = index + 1})
-        log("scan success")
-      else
-        log("scan failure; backing up")
-        discovered[#stack] = {}
-        stack:pop()
+    -- Scans
+    else
+      local checktoken = revarray.tokenstr.tokens[current_node[1]]
+      -- print("inptk " .. (checktoken and checktoken.value or "nil"))
+      -- print("chkptk " .. check_rule.value)
+      -- print(current_node[1], #revarray, #revarray.tokenstr.tokens)
+      if testscan(check_rule, checktoken) then -- successful scan
+        -- print("scan success")
+        local new_node = current_node[1] + 1
+        -- discovered[new_node] = true
+        if new_node == end_node and current_node[2] == #prule then
+          -- print("found end node " .. end_node)
+          -- print(current_node[2])
+          local info = {type = "scan", value = checktoken.value}
+          return grab_children({new_node, current_node[2] + 1, current_node, info})
+        elseif current_node[2] + 1 <= #prule then
+          -- print("pushing to stack <scan> " .. checktoken.value)
+          local info = {type = "scan", value = checktoken.value}
+          stack:push({new_node, current_node[2] + 1, current_node, info} )
+        end
       end
     end
-
+    
   end
-  return stack
+  -- if execution gets here then nothing was found
+  -- print("\n\n")
+  -- print(#discovered)
+  -- for i, v in ipairs(discovered) do
+    -- print(i,tostring(v))
+  -- end
+  error(item:_debug() .. " no path found")
+
 end
 
 local print_items
@@ -448,7 +475,7 @@ print_items = function(branch, indent)
   local indentstr = (" "):rep(indent)
   for i,v in ipairs(branch.children) do
     -- print("type", v.type)
-    if v.type == "branch" then
+    if v.type == "item" then
       -- print(indentstr .. "item: " .. v.value.result)
       print(indentstr .. v.value:_debug())
       print_items(v, indent + 4)
@@ -496,6 +523,25 @@ expand_tree = function (revarray, branch, items)
   end
 end
 
+local generic_print = function(self) return self.value end
+
+--- take in an item in the format, expand it
+local recurse_tree
+recurse_tree = function(revarray, start)
+  -- print("expanding: " .. start.value:_debug())
+  -- if not start.children then start.children = {} end
+  local rule = start.value
+  start.print = start.value.production_rule.post
+  start.children = extract_rule_components(revarray, rule)
+  for _, child in ipairs(start.children) do
+    if child.type == "item" then
+      recurse_tree(revarray, child)
+    else
+      child.print = generic_print
+    end
+  end
+end
+
 function export.extract_parsetree(array)
 
   local revarray = reverse_array(array)
@@ -512,19 +558,13 @@ function export.extract_parsetree(array)
   }
   tree._debug = function() print_items(tree.tree) end
   ---@type lux_ast_item
-  local root_item = { type = "branch",
-                      item = search_rule,
-                      print = search_rule.production_rule.post,
-                      children = {} }
+  local root_item = { type = "item",
+                      value = search_rule, }
 
   tree.tree = root_item
 
-  local first_components = extract_rule_components(revarray, search_rule)
+  recurse_tree(revarray, root_item)
 
-  -- local tree = {_debug = print_items}
-
-  expand_tree(revarray, root_item, first_components)
- 
   return tree
 
 end

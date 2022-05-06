@@ -62,23 +62,40 @@ grammar:
 ---@field _keywords table
 ---@field _operators table
 ---@field _list table
+---@field _nullable table
 local grammar_core = {}
 grammar_core.__index = grammar_core
+
+local generic_post = function(self)
+    local concat = {}
+    for _,v in ipairs(self.children) do
+        table.insert(concat, v:print())
+    end
+    return table.concat(concat, " ")
+end
 
 ---@param name string
 ---@param rule string
 ---@param post? function | nil
 ---Add a rule to the grammar.
 function grammar_core:addRule(name, rule, post)
-  if type(post) ~= "function" and post ~= nil then
-    error("invalid argument: expected nil or function, got " .. type(post))
-  end
+  -- if type(post) ~= "function" and post ~= nil then
+  --   error("invalid argument: expected nil or function, got " .. type(post))
+  -- end
   if not self._list[name] then
     self._list[name] = {}
   end
   local final = generate_pattern(rule, self)
-  final.post = post
+  if post then
+    post = post:gsub("%$(%d)", "self.children[%1]:print()")
+    local post_func = "return function(self) return " 
+      .. post .. " end"
+    final.post = loadstring(post_func)()
+  else
+    final.post = generic_post
+  end
   final.pattern = rule
+  final._result = name
   table.insert(self._list[name], final)
 end
 
@@ -148,14 +165,43 @@ if type(operators) == "table" then
   end
 end
 
+local function is_nullable(grammar, rule)
+  for i = 1, #rule do
+    if not grammar._nullable[rule] then
+      return false
+    end
+  end
+  return true
+end
+
+local function add_nullable(grammar, rule)
+  if grammar._nullable[rule] == true then
+    return false
+  else
+    grammar._nullable[rule] = true
+    return true
+  end
+end
+
+function grammar_core:_generate_nullable()
+  local added_nullable = false
+  repeat
+    added_nullable = false
+    -- print("loop")
+    for _, set in pairs(self._list) do
+      for _, rule in ipairs(set) do
+        if is_nullable(self, rule) then
+          added_nullable = added_nullable or add_nullable(self, rule)
+        end
+      end
+    end
+  until added_nullable == false
+end
 
 
-
----@param label string
+---@param detailed boolean | nil
 --Prints all the keywords, operators, and rules contained in the grammar to stdout.
-function grammar_core:_debug(label)
-  local final_label = (label and ("'%s'"):format(label)) or ""
-  print("dumping grammar " .. final_label)
+function grammar_core:_debug(detailed)
   print("---keywords---")
   for i,v in pairs(self._keywords) do
     print(i)
@@ -164,13 +210,19 @@ function grammar_core:_debug(label)
   for i,v in ipairs(self._operators) do
     print(i,v)
   end
+  print("---nullable---")
+  for i,v in pairs(self._nullable) do
+    print(i._result)
+  end
   print("---rules---")
   for name,list in pairs(self._list) do
     print("  " .. name)
     for num,rule in ipairs(list) do
-      print(string.format("    %s: | length %s", num, #rule[1]))
-      for _, tok in ipairs(rule[1]) do
-        print(string.format("      type: %s | value: %s", tok.type, tok.value))
+      print(string.format("    %s: | length %s | %s", num, #rule, rule.pattern))
+      if detailed then
+        for _, tok in ipairs(rule) do
+          print(string.format("      type: %s | value: %s", tok.type, tok.value))
+        end
       end
     end
   end
@@ -183,8 +235,48 @@ local function newGrammar()
   output._keywords = {}
   output._operators = {}
   output._list = {}
+  output._nullable = {}
 
   return output
 end
+
+
+-- Ast format definition
+
+---@class lux_ast_item
+---@field type string
+---@field position number[2]
+---@field print function
+---@field item earley_item
+---@field children lux_ast_item[] | nil
+local lux_ast_item_base = {}
+
+---@class lux_ast
+---@field output string[]
+---@field posmap table[]
+---@field tree lux_ast_item[]
+local lux_ast_base = {}
+lux_ast_base.__index = lux_ast_base
+
+function lux_ast_base:output(str, pos)
+    table.insert(self.output, str)
+end
+
+---@return lux_ast
+local function new_ast()
+    return setmetatable({}, lux_ast_base)
+end
+
+---@return lux_ast_item
+local function new_ast_item(type, children, print, position)
+  local tab = { type = type,
+                position = position,
+                print = print,
+                children = children }
+  return tab
+end
+
+
+
 
 return newGrammar
