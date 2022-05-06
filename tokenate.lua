@@ -151,8 +151,8 @@ end
 ---@field position number[]
 local token_base = {}
 token_base.__index = token_base
-local function newToken(type,value,position)
-    return setmetatable({type = type, value = value, position = position}, token_base)
+local function newToken(type,value,position,_before)
+    return setmetatable({type = type, value = value, position = position,_before = _before}, token_base)
 end
 
 ---@class lux_tokenstream
@@ -169,15 +169,15 @@ function export.new_tokenstream()
     return setmetatable(out, tokenstream_base)
 end
 
-function tokenstream_base:insertToken(type,value,position)
-    local token = newToken(type, value, position)
+function tokenstream_base:insertToken(type,value,position, _before)
+    local token = newToken(type, value, position, _before)
     table.insert(self.tokens, token)
 end
 
 function tokenstream_base:_debug()
     for k,v in ipairs(self.tokens) do
-        local msg = "%d | type: %s | value: %s | position: %d:%d"
-        msg = msg:format(k, v.type, v.value, v.position[1], v.position[2])
+        local msg = "%d | type: %s | value: %s | position: %d:%d | _before: (%s)"
+        msg = msg:format(k, v.type, v.value, v.position[1], v.position[2], v._before)
         print(msg)
     end
 end
@@ -199,18 +199,21 @@ end
 --[[   COMPLEX TOKEN SEARCHES   ]]--
 
 
-local function skip_to_significant(inpstr)
+local function skip_to_significant(inpstr, _before)
+    _before = _before or {}
     while true do
         local next_char = inpstr:peek()
         if next_char == nil then
             inpstr:nextLine()
+            table.insert(_before, "\n")
             if inpstr.current_line > #inpstr.lines then
                 return false
             end
         elseif next_char:match("%s") or next_char:match("%c") then
+            table.insert(_before, next_char)
             inpstr:advance()
         else
-            return true
+            return true, _before
         end
     end
 end
@@ -591,9 +594,11 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
     for _,line in ipairs(inpstr.lines) do
         table.insert(self._lines, line)
     end
+    local _before = {}
 
     while true do
-        local status = skip_to_significant(inpstr)
+        local status 
+        status, _before = skip_to_significant(inpstr, _before)
         if status == false then
             return
         end
@@ -634,7 +639,8 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                 if grammar._keywords[name] then
                     type = "Keyword"
                 end
-                self:insertToken(type, name, position)
+                self:insertToken(type, name, position, table.concat(_before))
+                _before = {}
                 -- print("word " .. name .. "|")
                 inpstr:advance(pos-1)
             -- end
@@ -673,7 +679,8 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             elseif not has_numbers then
                 check_symbol = true
             elseif not malformed and has_numbers then
-                self:insertToken("Number", inpstr:peekTo(pos-1), position)
+                self:insertToken("Number", inpstr:peekTo(pos-1), position, table.concat(_before))
+                _before = {}
                 inpstr:advance(pos-1)
             end
 
@@ -683,7 +690,8 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             if status == false then
                 inpstr:throw("unfinished string", position)
             elseif status == true then
-                self:insertToken("String", str, position)
+                self:insertToken("String", str, position, table.concat(_before))
+                _before = {}
                 inpstr:advance(str:len())
             end
 
@@ -691,7 +699,8 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         elseif next_char == "[" then -- multiline strings
             local status, str = handle_multilinestr(1, inpstr)
             if status == true then
-                self:insertToken("String", str, position)
+                self:insertToken("String", str, position,table.concat(_before))
+                _before = {}
             elseif status == false then
                 inpstr:throw("unterminated multiline string", position)
             elseif status == nil then
@@ -724,7 +733,8 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
                     break
                 end
             end
-            self:insertToken("Symbol", value, position)
+            self:insertToken("Symbol", value, position, table.concat(_before))
+            _before = {}
             inpstr:advance(advance_to)
         end
     end

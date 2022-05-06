@@ -286,23 +286,13 @@ function export.earley_parse(grammar, tokenstr, start_rule)
       elseif nextsym.type == "match_rule" then -- prediction
         -- log("\nattempting prediction")
 
-        -- local precompleted = false -- early completion
-        -- for _, compitem in ipairs(array[current_set].complete) do
-        --   -- if compitem.result == nextsym.value then
-        --     precompleted = true
-        --     break
-        --   end
-        -- end
         set:predict_items(grammar, nextsym.value)
-        -- if precompleted then
         if grammar._nullable[nextsym.value] then
           -- log("precompleted")
           local new_item = item:clone()
           new_item:advance()
           array:add_to(current_set, new_item)
-        -- else
         end
-        -- end
       else -- scan
         -- log("\nattempting scan")
         ---@type lux_token
@@ -336,7 +326,9 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     local last_token = tokenstr.tokens[#array]
     success = false
     errmsg = "failed to parse full input\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
-    errmsg = errmsg .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]) .. "  <<<"
+    -- errmsg = errmsg .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]) .. "  <<<"
+    errmsg = errmsg .. tokenstr._lines[last_token.position[1]] .. "\n"
+      .. string.rep(" ", string.len(last_token.position[1] .. ":" .. last_token.position[2] .. " " .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]))) .. "^"
   else
   -- end
     local hasstart = false
@@ -349,7 +341,14 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     end
     if not hasstart then
       success = false
-      errmsg = "failed to obtain a complete parse"
+      errmsg = "incomplete parse at end of input"
+      -- local missing = {}
+      -- for _, item in ipairs(array[#array]) do
+      --   if item:next_symbol() ~= nil then
+      --     table.insert(missing, item:next_symbol().value)
+      --   end
+      -- end
+      -- errmsg = errmsg .. "looking for tokens: " .. table.concat(missing, ", ")
     end
   end
 
@@ -357,13 +356,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     error(errmsg)
     -- print(errmsg)
   end
-  -- return array
     return array
-  -- else
-  --   log("failed to parse full input")
-  --   log(#array, #tokenstr.tokens)
-  --   return array
-  -- end
 
 end
 
@@ -418,17 +411,11 @@ local function extract_rule_components(revarray, item)
       local node_set = revarray[current_node[1]]
       for _, edge in ipairs(node_set) do
         if edge.result == check_rule.value and not discovered[edge.ends_at] then
-          -- print("edge success " .. edge:_debug())
           local new_node = edge.ends_at
-          -- print("new node: " .. new_node)
-          -- discovered[new_node] = true
           if new_node == end_node and current_node[2] == #prule then
-            -- print("found end node " .. end_node)
-            -- print(current_node[2])
             local info = {type = "item", value = edge}
             return grab_children({new_node, current_node[2] + 1, current_node, info})
           elseif current_node[2] + 1 <= #prule then
-            -- print("pushing to stack " .. edge:_debug())
             local info = {type = "item", value = edge}
             stack:push({new_node, current_node[2] + 1, current_node, info})
           end
@@ -438,21 +425,13 @@ local function extract_rule_components(revarray, item)
     -- Scans
     else
       local checktoken = revarray.tokenstr.tokens[current_node[1]]
-      -- print("inptk " .. (checktoken and checktoken.value or "nil"))
-      -- print("chkptk " .. check_rule.value)
-      -- print(current_node[1], #revarray, #revarray.tokenstr.tokens)
       if testscan(check_rule, checktoken) then -- successful scan
-        -- print("scan success")
         local new_node = current_node[1] + 1
-        -- discovered[new_node] = true
         if new_node == end_node and current_node[2] == #prule then
-          -- print("found end node " .. end_node)
-          -- print(current_node[2])
-          local info = {type = "scan", value = checktoken.value}
+          local info = {type = "scan", value = checktoken.value, _before = checktoken._before}
           return grab_children({new_node, current_node[2] + 1, current_node, info})
         elseif current_node[2] + 1 <= #prule then
-          -- print("pushing to stack <scan> " .. checktoken.value)
-          local info = {type = "scan", value = checktoken.value}
+          local info = {type = "scan", value = checktoken.value, _before = checktoken._before}
           stack:push({new_node, current_node[2] + 1, current_node, info} )
         end
       end
@@ -460,11 +439,6 @@ local function extract_rule_components(revarray, item)
     
   end
   -- if execution gets here then nothing was found
-  -- print("\n\n")
-  -- print(#discovered)
-  -- for i, v in ipairs(discovered) do
-    -- print(i,tostring(v))
-  -- end
   error(item:_debug() .. " no path found")
 
 end
@@ -474,9 +448,7 @@ print_items = function(branch, indent)
   indent = indent or 0
   local indentstr = (" "):rep(indent)
   for i,v in ipairs(branch.children) do
-    -- print("type", v.type)
     if v.type == "item" then
-      -- print(indentstr .. "item: " .. v.value.result)
       print(indentstr .. v.value:_debug())
       print_items(v, indent + 4)
     else
@@ -485,51 +457,11 @@ print_items = function(branch, indent)
   end
 end
 
-
-local expand_tree
-expand_tree = function (revarray, branch, items)
-  for _,item in ipairs(items) do
-
-    ---@type lux_ast_item
-    local newitem = {}
-    newitem.type = "leaf"
-    newitem.value = item.value
-    -- newitem.item = item
-    newitem.print = function(self) return self.value end
-
-    if item.type == "item" then
-      newitem.type = "branch"
-      newitem.print = newitem.value.production_rule.post
-      newitem.children = {}
-      local subitems = extract_rule_components(revarray, item.value)
-      if subitems then
-      expand_tree(revarray, newitem, subitems)
-      end
-    else
-      -- newitem.scan_res = item.value
-    end
-
-    table.insert(branch.children, newitem)
-
-    -- if v.type == "item" then
-    --   local nbranch = {type = "branch", value = v.value}
-    --   table.insert(tree, nbranch)
-    --   local nitems = extract_rule_components(revarray, v.value)
-    --   expand_tree(revarray, nbranch, nitems)
-    -- else
-    --   table.insert(tree,v)
-    -- end
-      
-  end
-end
-
-local generic_print = function(self) return self.value end
+local generic_print = function(self) return (self._before or "") .. self.value end
 
 --- take in an item in the format, expand it
 local recurse_tree
 recurse_tree = function(revarray, start)
-  -- print("expanding: " .. start.value:_debug())
-  -- if not start.children then start.children = {} end
   local rule = start.value
   start.print = start.value.production_rule.post
   start.children = extract_rule_components(revarray, rule)

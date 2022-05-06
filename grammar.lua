@@ -71,7 +71,7 @@ local generic_post = function(self)
     for _,v in ipairs(self.children) do
         table.insert(concat, v:print())
     end
-    return table.concat(concat, " ")
+    return table.concat(concat, "")
 end
 
 ---@param name string
