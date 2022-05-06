@@ -1,0 +1,23 @@
+123. .54 23.1
+abcdef
+
+#define macro macbo_inserted
+#define 🗿 <void>
+#
+#define debug(out) print(out)
+#define dump(...) ...
+
+🗿
+macro
+
+debug(a .. b)
+
+dump(1 2 fizz)
+
+h . ... == <=
+if then end
+"string1""string2"[==[multiline 
+string]==]
+
+--[[ multiline comment
+         this stuff never appears in the output ]]

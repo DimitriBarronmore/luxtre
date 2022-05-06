@@ -1,21 +1,6 @@
-
---[[
-    module name: luxtre
-
-    luxtre.loadfile(filename) > loads file/returns chunk
-    luxtre.dofile(filename) > runs file
-    luxtre.loadstring / dostring > same as above with string input
-    luxtre.compile_file(filename) > compiles file to .lua
-
-    include require loader for .lux file extension
---]]
-local path = (...):gsub("loader", "")
-
-local newGrammar = require(path .. "grammar")
-local tokenate = require(path .. "tokenate")
-local parse = require(path .. "parse")
-
-local module = {}
+local newGrammar = require("grammar")
+local tokenate = require "tokenate"
+local parse = require "parse"
 
 local keys = {
     "break",
@@ -60,7 +45,11 @@ local ops = {
     '++',
   }
 
-  local rules = {
+local grammar = newGrammar()
+grammar:addKeywords(keys)
+grammar:addOperators(ops)
+
+local rules = {
 
     --blocks
 
@@ -271,140 +260,96 @@ local ops = {
     {"unop", "'#'"}
 }
 
-local grammar = newGrammar()
-grammar:addKeywords(keys)
-grammar:addOperators(ops)
 grammar:addRules(rules)
-grammar :_generate_nullable()
+-- grammar :_generate_nullable()
 
-local function generic_load(inputstream)
-    local tokenstream = tokenate.new_tokenstream()
-    tokenstream:tokenate_stream(inputstream, grammar)
-    local status, res = pcall(parse.earley_parse, grammar, tokenstream, "block")
-    if status == false then
-        local msg_start = string.find(res, "%d:", 1)
-        error(string.sub(res, msg_start + 3), 3)
-    end
-    local ast = parse.extract_parsetree(res)
-    return ast.tree:print()
-end
+-- grammar:_debug(true)
 
-local load_string_function
-if _VERSION > "Lua 5.1" then
-    load_string_function = load
-else
-    load_string_function = loadstring
-end
+-- local str = [[
+-- {
+--     one:  '==',
+--     two: '<=',
+--     '>=',
+--     '~=',
+--     '::',
+--     '...',
+--     '..',
+--   }
+-- ]]
 
----@param filename string
----@param env table | nil
----Loads a .lux file by the given name and returns a chunk.
-function module.loadfile(filename, env)
-    if type(filename) ~= "string" then
-        error("filename must be a string", 2)
-    end
-    local filename = filename .. ".lux"
-    local status,res = pcall(tokenate.inputstream_from_file, filename)
-    if status == false then
-        error("file '" .. filename .. "' does not exist", 2)
-    end
-    local output = generic_load(res)
-    output = load_string_function(output, filename, "t", env)
-    return output
-end
+str = [[
 
----@param filename string
----@param env table | nil
----Runs a .lux file by the given name.
-function module.dofile(filename, env)
-    local status, res = pcall(module.loadfile, filename, env)
-    if status == false then
-        error(res, 2)
-    end
-    return res()
-end
+  local tab = {foo: 1, bar: 2, buzz: 3}
+  tab.printfoo => print(self.foo)
 
----@param str string
----@param env table | nil
----Loads a string as luxtre coae.
-function module.loadstring(str, env)
-    if type(str) ~= "string" then
-        error("input must be a string", 2)
-    end
-    local tokenstream = tokenate.inputstream_from_text(str)
-    local output = generic_load(tokenstream)
-    output = load_string_function(output, str, "t", env)
-    return output
-end
+  a (name) -> print("hello" .. name)
 
----@param str string
----@param env table | nil
----Runs a string as luxtre code.
-function module.dostring(str, env)
-    local status, res = pcall(module.loadstring, str, env)
-    if status == false then
-        error(res, 2)
-    end
-    return res()
-end
+  bar += 2 * 5 - funcall()
+  bar -= 5 * 5
+  bar *= 5 * 5
+  bar /= 5 * 5
+  bar %= 5 * 5
+  bar ^= 5 * 5
 
-function module.compile_file(filename)
-    if type(filename) ~= "string" then
-        error("filename must be a string", 2)
-    end
-    local filename_lux = filename .. ".lux"
+  bar++
+  
+  @decorator
+  function somefunc(arguments, ...)
+    print(whatever)
+  end
 
-    local status,res = pcall(tokenate.inputstream_from_file, filename_lux)
-    if status == false then
-        error("file '" .. filename_lux .. "' does not exist", 2)
-    end
-    local text = generic_load(res)
+  @decorator
+  local function somefunc(arguments, ...)
+    print(whatever)
+  end
 
-    local file = io.open(filename .. ".lua", "w+")
-    file:write(text)
-    file:flush()
-    file:close()
-end
+  @decorator 
+  name (args) -> print(whatever)
 
-local function filepath_search(filepath)
-    for path in package.path:gmatch("[^;]+") do
-        local fixed_path = path:gsub("%.lua", ".lux"):gsub("%?", (filepath:gsub("%.", "/")))
-        local file = io.open(fixed_path)
-        if file then file:close() return fixed_path end
-    end
-end
+  @decorator 
+  local name (args) -> print(whatever)
 
--- Based partially on code from Candran
--- Thanks for having an implementation to reference
--- https://github.com/Reuh/candran
+  @decorator 
+  name (args) => print(whatever)
 
-local function luxtre_searcher(modulepath)
-    local filepath = filepath_search(modulepath)
-    if filepath then
-        return function (filepath)
-            local status, res = pcall(module.loadfile, filepath)
-            if status == true then
-                return res(modulepath)
-            else
-                error("error loading luxtre module '" .. modulepath .. "'\n" .. res, 3)
-            end
-        end
-    end
-end
+  @decorator 
+  local name (args) => print(whatever)
 
-function module.register()
-	local searchers 
-    if _VERSION == "Lua 5.1" then
-		searchers = package.loaders
-	else
-		searchers = package.searchers
-	end
-    for _, s in ipairs(searchers) do
-        if s == luxtre_searcher then
-            return
-        end
-    end
-    table.insert(searchers, 1, luxtre_searcher)
-end
+  long_func -> do
+    print "a"
+    print "b"
+  end
 
-return module
+]]
+
+--str = [[
+--print({1,2,3}[2],  "string":len())
+--]]
+
+local inpstr = tokenate.inputstream_from_text(str, "tabl")
+-- local inpstr = tokenate.inputstream_from_file("parse.lua")
+local tokstr = tokenate.new_tokenstream()
+tokstr:tokenate_stream(inpstr, grammar)
+-- tokstr:_debug()
+
+-- print("\n===earley\n")
+-- local time = os.clock()
+local ptree = parse.earley_parse(grammar, tokstr, "block")
+
+-- print(#tokstr.tokens, #ptree)
+
+-- ptree:_debug("all")
+
+-- for i,v in ipairs(ptree[33]) do
+--   print(i,v:_debug())
+-- end
+
+
+local ast = parse.extract_parsetree(ptree)
+
+-- print("\n\n=====\n")
+-- ast:_debug()
+-- -- -- print("input:\n" .. str)
+print(ast.tree:print())
+-- local time2 = os.clock()
+-- print(time2 - time)
