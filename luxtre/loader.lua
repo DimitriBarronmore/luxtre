@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 
 --[[
     module name: luxtre
@@ -408,6 +409,7 @@ function module.register()
     if _VERSION == "Lua 5.1" then
 		searchers = package.loaders
 	else
+---@diagnostic disable-next-line: deprecated
 		searchers = package.searchers
 	end
     for _, s in ipairs(searchers) do
