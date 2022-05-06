@@ -44,7 +44,7 @@ function inputstream_base:peek(x)
     if x == nil then x = 1 end
     local out_pos = {self.current_line, self.current_index}
     local cline_str = self.lines[self.current_line]
-    local cline_len = string.len(cline_str)
+    local cline_len = string.len(cline_str or "")
     if self.current_index + (x-1) > cline_len then
         return nil, {self.current_line, "<eol>"}
     else

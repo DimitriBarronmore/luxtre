@@ -289,9 +289,10 @@ local function generic_load(inputstream)
     return ast.tree:print()
 end
 
-local load_string_function
+local load_string_function, default_env
 if _VERSION > "Lua 5.1" then
     load_string_function = load
+    default_env = _G
 else
     load_string_function = loadstring
 end
@@ -300,6 +301,7 @@ end
 ---@param env table | nil
 ---Loads a .lux file by the given name and returns a chunk.
 function module.loadfile(filename, env)
+    env = env or default_env
     if type(filename) ~= "string" then
         error("filename must be a string", 2)
     end
@@ -317,6 +319,7 @@ end
 ---@param env table | nil
 ---Runs a .lux file by the given name.
 function module.dofile(filename, env)
+    env = env or default_env
     local status, res = pcall(module.loadfile, filename, env)
     if status == false then
         error(res, 2)
@@ -328,6 +331,7 @@ end
 ---@param env table | nil
 ---Loads a string as luxtre coae.
 function module.loadstring(str, env)
+    env = env or default_env
     if type(str) ~= "string" then
         error("input must be a string", 2)
     end
@@ -341,6 +345,7 @@ end
 ---@param env table | nil
 ---Runs a string as luxtre code.
 function module.dostring(str, env)
+    env = env or default_env
     local status, res = pcall(module.loadstring, str, env)
     if status == false then
         error(res, 2)
