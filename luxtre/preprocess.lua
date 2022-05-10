@@ -82,7 +82,7 @@ local function check_conditional(line)
         or line:find("repeat%s*$")
 end
 
-local function compile_lines(text, name)
+function export.compile_lines(text, name)
 	name = name or "<lux input>"
 
     local ppenv = setup_sandbox(name)
@@ -135,49 +135,4 @@ local function compile_lines(text, name)
     -- return table.concat(direc_lines), write_lines
 end
 
---------------------
-
--- local txt = compile_lines([==[
-
--- #! shebang
-
--- normline
--- #line1
--- #line2 if then
--- #cont
--- # then
--- [=[ ]=] --[[
---     #   line3 ]]
---     nor,a;
--- hhhhh
--- # else
---    # line4
-
--- 9
--- ]==])
-local txt = compile_lines([==[
-#! shebang
-
-normalline
-# dbg = false
-
-stuff
-stuff
-# if dbg then
-    hello world
-# else
-    goodbye world
-# end
-
-#local count = 0
-#repeat
-    hhh
-    iii
-#count = count + 1
-#until count == 4
-bye
-]==])
-
-for i, line in ipairs(txt._output) do
-    print(i, txt._linemap[i], line)
-end
+return export
