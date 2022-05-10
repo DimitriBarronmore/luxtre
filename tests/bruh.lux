@@ -1,4 +1,8 @@
 
 print ("hello world ":rep(4))
 
---print(hhh["hello"])
+if cond.yy and not hh then
+
+end
+
+print(hhh["hello"])

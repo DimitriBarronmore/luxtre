@@ -4,7 +4,7 @@ loader.register()
 
 require("bruh")
 
-require("test_macros")
+-- require("test_macros")
 
 -- chunk = loader.loadfile("bruh")
 
