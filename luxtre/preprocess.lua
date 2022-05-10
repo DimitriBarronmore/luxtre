@@ -2,6 +2,11 @@ local path = (...):gsub("preprocess", "")
 
 local load_func = require(path .. "safeload")
 
+local unpack = unpack
+if _VERSION > "Lua 5.1" then
+    unpack = table.unpack
+end
+
 local export = {}
 
 local function copy(tab)
@@ -40,10 +45,17 @@ end
       xpcall = xpcall
 }
 
+local macros_mt = {
+    __newindex = function(t,k,v)
+        table.insert(t.__listed, k)
+        rawset(t,k,v)
+    end
+}
+
 local function setup_sandbox(name)
     name = name or ""
     local sandbox = copy(sandbox_blueprint)
-    sandbox.macros = {}
+    sandbox.macros = setmetatable({__listed = {}}, macros_mt)
     sandbox._output = {}
     sandbox._write_lines = {}
     sandbox._linemap = {}
@@ -106,6 +118,24 @@ function export.compile_lines(text, name)
             ppenv._linemap[#ppenv._output] = count
 
         else --normal lines
+            -- macros
+            for _, macro in ipairs(ppenv.macros.__listed) do
+                local res = ppenv.macros[macro]
+                if type(res) == "string" then
+                    line = line:gsub(macro, res)
+                elseif type(res) == "function" then
+                    line = line:gsub(macro .. "%s-(%b())", function(args)
+                            local chunk = string.format("return macros[\"%s\"]%s", macro, args)
+                            local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
+                            if err then
+                                error(err,2)
+                            end
+                            return f()
+                        end)
+                end
+            end
+
+            -- write blocks
             if hanging_conditional then
                 ppenv._write_lines[count] = line
                 table.insert(direc_lines,("_write(%d)"):format(count))
