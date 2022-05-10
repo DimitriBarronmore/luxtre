@@ -1,29 +1,8 @@
+local path = (...):gsub("preprocess", "")
+
+local load_func = require(path .. "safeload")
+
 local export = {}
-
-local function load_51(text, name, mode, env)
-    local iter = function()
-        local tx = text
-        text = ""
-        return tx
-    end
-    local func, err = load(iter, name)
-    if err then
-        -- error(err)
-        return nil, err
-    end
-    if env then
-        setfenv(func, env)
-    end
-    return func
-end
-
-local load_func
-if _VERSION > "Lua 5.1" then
-    load_func = load
-else
-    load_func = load_51
-end
-
 
 local function copy(tab)
     local newtab = {}
@@ -67,9 +46,11 @@ local function setup_sandbox(name)
     sandbox.macros = {}
     sandbox._output = {}
     sandbox._write_lines = {}
+    sandbox._linemap = {}
 
     sandbox._write = function(num)
-        sandbox._output[num] = sandbox._output[num] .. " " .. sandbox._write_lines[num]
+        table.insert(sandbox._output, sandbox._write_lines[num])
+        sandbox._linemap[#sandbox._output] = num
     end
 
     return sandbox
@@ -115,17 +96,21 @@ local function compile_lines(text, name)
         count = count + 1
         if line:match("^%s*#") 
           and not line:match("^#!")
-          and not in_string then
+          and not in_string then -- DIRECTIVES  
+            
             -- if-elseif-else chain handling
             hanging_conditional = check_conditional(line)
             local stripped = line:gsub("^%s*#", "")
             table.insert(direc_lines, stripped)
             table.insert(ppenv._output, "")
+            ppenv._linemap[#ppenv._output] = count
+
         else --normal lines
             if hanging_conditional then
                 ppenv._write_lines[count] = line
                 table.insert(direc_lines,("_write(%d)"):format(count))
                 table.insert(ppenv._output, "")
+                ppenv._linemap[#ppenv._output] = count
             else
             	if #direc_lines > 0 then -- execution
 					local chunk = string.rep("\n", count-1-#direc_lines) .. table.concat(direc_lines, "\n")
@@ -137,12 +122,16 @@ local function compile_lines(text, name)
                     func()
 
 				end
+
                 in_string, eqs = multiline_status(line, in_string, eqs)
                 table.insert(ppenv._output, line)
+                ppenv._linemap[#ppenv._output] = count
             end
         end
     end
-    print(table.concat(ppenv._output, "-\n"))
+    return ppenv
+    -- print(table.concat(ppenv._output, "-\n"))
+
     -- return table.concat(direc_lines), write_lines
 end
 
@@ -166,7 +155,6 @@ end
 
 -- 9
 -- ]==])
-
 local txt = compile_lines([==[
 #! shebang
 
@@ -184,9 +172,12 @@ stuff
 #local count = 0
 #repeat
     hhh
+    iii
 #count = count + 1
 #until count == 4
 bye
 ]==])
 
-print(txt)
+for i, line in ipairs(txt._output) do
+    print(i, txt._linemap[i], line)
+end
