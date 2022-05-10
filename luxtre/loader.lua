@@ -265,11 +265,11 @@ local ops = {
     {"binop", "'>='"},
     {"binop", "'=='"},
     {"binop", "'~='"},
-    {"binop", "'and'"},
-    {"binop", "'or'"},
+    {"binop", "'and'", [[" and "]]},
+    {"binop", "'or'", [[" or "]]},
 
     {"unop", "'-'"},
-    {"unop", "not", [["not "]]},
+    {"unop", "not", [[" not "]]},
     {"unop", "'#'"}
 }
 
