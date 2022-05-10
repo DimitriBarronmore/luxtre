@@ -45,6 +45,30 @@ end
       xpcall = xpcall
 }
 
+local function change_macros(ppenv, line, count, name)
+    for _, macro in ipairs(ppenv.macros.__listed) do
+        local res = ppenv.macros[macro]
+        if type(res) == "string" then
+            line = line:gsub(macro, res)
+        elseif type(res) == "function" then
+            line = line:gsub(macro .. "%s-(%b())", function(args)
+                print("args ", args)
+                local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]%s", macro, args)
+                local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
+                if err then
+                    error(err,2)
+                end
+                local res = f()
+                if res == "" or res == nil then
+                    res = " "
+                end
+                return res
+            end)
+        end
+    end
+    return line
+end
+
 local macros_mt = {
     __newindex = function(t,k,v)
         table.insert(t.__listed, k)
@@ -109,7 +133,12 @@ function export.compile_lines(text, name)
         if line:match("^%s*#") 
           and not line:match("^#!")
           and not in_string then -- DIRECTIVES  
-            
+
+            -- Special Directives
+            -- #define syntax
+            line = line:gsub("^%s*#%s*define%s+([^%s()]+)%s+(.+)$", "macros[\"%1\"] = [===[%2]===]")
+            print(line)
+
             -- if-elseif-else chain handling
             hanging_conditional = check_conditional(line)
             local stripped = line:gsub("^%s*#", "")
@@ -118,25 +147,10 @@ function export.compile_lines(text, name)
             ppenv._linemap[#ppenv._output] = count
 
         else --normal lines
-            -- macros
-            for _, macro in ipairs(ppenv.macros.__listed) do
-                local res = ppenv.macros[macro]
-                if type(res) == "string" then
-                    line = line:gsub(macro, res)
-                elseif type(res) == "function" then
-                    line = line:gsub(macro .. "%s-(%b())", function(args)
-                            local chunk = string.format("return macros[\"%s\"]%s", macro, args)
-                            local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
-                            if err then
-                                error(err,2)
-                            end
-                            return f()
-                        end)
-                end
-            end
-
+            
             -- write blocks
             if hanging_conditional then
+                line = change_macros(ppenv, line, count, name)
                 ppenv._write_lines[count] = line
                 table.insert(direc_lines,("_write(%d)"):format(count))
                 table.insert(ppenv._output, "")
@@ -153,6 +167,7 @@ function export.compile_lines(text, name)
 
 				end
 
+                line = change_macros(ppenv, line, count, name)
                 in_string, eqs = multiline_status(line, in_string, eqs)
                 table.insert(ppenv._output, line)
                 ppenv._linemap[#ppenv._output] = count
