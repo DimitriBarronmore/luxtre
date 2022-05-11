@@ -137,3 +137,7 @@ print(fizzbuzz) --> 'print("1 2 fizz 4 buzz fizz 7 8 fizz buzz")'
 print(blank)    --> 'print()'
 ```
 
+# Command-line Use
+Lux currently offers an extremely basic method for running files directly from a commandline in linux. Add the `bin` folder to your path, and call `lux <filename>` to run a .lux file. 
+
+Note that it expects the `bin` folder to be adjacent to the `luxtre` folder; you cannot move it to a separate location.
