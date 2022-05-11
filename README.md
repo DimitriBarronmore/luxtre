@@ -61,18 +61,79 @@ end
             print(whatever)
         end )
 --]]
-
----[[ MACROS ]]---
--- If the first thing on a line is a #define statment, a c-style macro will be created.
--- Macros cannot terminate strings or begin comments.
--- Format:
-#define macroname this is the result
--- When 'macroname' appears in the input, 
--- it will be replaced with the remainder of the line.
-#define advanced(arg1, arg2, ...) print(arg1, arg2, ...)
--- When a macro takes arguments, those arguments will be replaced 
--- with the passed values in thr right-hand side.
+```
 
 
+## Preprocessing
+Before the file is compiled, lines which begin with '#' are run in the preprocessor (ignoring trailing whitespace, shebangs, and multi-line strings/comments). The preprocessor executes these lines top-to-bottom as lua code.
+
+The preprocessor is not yet complete, but in the current state it can be used to determine what is written to the final file as well as define macros.
+
+### Conditional Lines
+
+Within a preprocessor `do`, `if`, `while`, `repeat`, or `for` block, input lines will only be written to the output dependent on the surrounding preprocessor code. 
+For example:
+```lua
+# if hello then
+    print("hello world")
+# else
+    print("goodbye world")
+# end
+-- Outputs one line or the other depending on the value of the variable 'hello'
+
+print(
+#local count = 0
+#repeat
+#   count = count + 1
+    "the end is never" .. 
+#until count == 10
+"" )
+-- The final result concatenates "the end is never" with itself ten times. 
+```
+
+### Macros
+Macros can be defined as string keyed values in the `macros` table. 
+If the value give is a string, all instances of the key in the file will be replaced with the string. 
+If the value is a function, calls to the function will be replaced with the returned string.
+
+The macro can be blanked out entirely by setting the result to an empty string.
+```lua
+-- Simple Macro
+# macros.constant = "1000"
+print(constant) --> 'print(1000)'
+
+-- Wacky characters work as well.
+# macros["😂"] = ":joy:"
+print("😂") -- > 'print(":joy:")
+
+-- **WARNING:** Instances of '%' in a macro output MUST be 
+-- escaped as '%%' if you don't to get strange errors.
+
+-- Function Macro
+# macros["reverse"] = function(arg1, arg2)
+#   return arg2 .. " " .. arg1
+print("reverse("world", "hello")") --> 'print("hello world")'
+
+-- Keep in mind that function macro detection is rather simple.
+-- Arguments cannot contain an unmatched right parens, or things will break.
+print( "reverse(')', '(')" ) --> ERROR: unfinished string near <eof>
+
+-- Note that function macros are executed entirely in the preprocessor.
+-- Any varable names given as arguments will evaluate to those variables
+-- in the preprocessor code.
+# example_msg = "hi there"
+# macros.print_var = function(name)
+#   return name
+# end
+print( "print_var(example_msg)" ) --> 'print( "hi there" )'
+
+-- Simple macros can be defined more easily with #define syntax.
+-- If the line ends with at least two spaces, the macro will be blanked.
+-- #define <name> <result>
+# define fizzbuzz "1 2 fizz 4 buzz fizz 7 8 fizz buzz"
+# define blank  
+            --^^ note the spaces
+print(fizzbuzz) --> 'print("1 2 fizz 4 buzz fizz 7 8 fizz buzz")'
+print(blank)    --> 'print()'
 ```
 
