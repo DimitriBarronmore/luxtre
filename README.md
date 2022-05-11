@@ -85,7 +85,7 @@ print(
 #local count = 0
 #repeat
 #   count = count + 1
-    "the end is never" .. 
+    "the end is never " .. 
 #until count == 10
 "" )
 -- The final result concatenates "the end is never" with itself ten times. 
@@ -97,6 +97,8 @@ If the value give is a string, all instances of the key in the file will be repl
 If the value is a function, calls to the function will be replaced with the returned string.
 
 The macro can be blanked out entirely by setting the result to an empty string.
+
+Macros are always evaluated in the order they were originally added, regardless of whether they have since been changed. This means that macros are fully deterministic in how they interact with each other.
 ```lua
 -- Simple Macro
 # macros.constant = "1000"
