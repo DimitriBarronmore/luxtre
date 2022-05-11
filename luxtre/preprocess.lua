@@ -111,11 +111,40 @@ local function multiline_status(line, in_string, eqs)
     return in_string, eqs
 end
 
-local function check_conditional(line)
-    return line:find("then%s*$")
-        or line:find("else%s*$")
-        or line:find("do%s*$")
-        or line:find("repeat%s*$")
+local function check_conditional(line, hanging_conditional)
+    local s = 1
+    repeat
+    if not hanging_conditional then
+        local r1 = {line:find("then", s)}
+        local r2 = {line:find("else", s)}
+        local r3 = {line:find("do", s)}
+        local r4 = {line:find("repeat", s)}
+        local result = (r1[1] and r1)
+                    or (r2[1] and r2)
+                    or (r3[1] and r3)
+                    or (r4[1] and r4)
+                    or nil
+        if result then
+            hanging_conditional = true
+            s = result[2]
+        else
+            s = nil
+        end
+    else
+        local s1,e1 = line:find("end", s)
+        local s2,e2 = line:find("until", s)
+        if s1 then
+            s = e1
+            hanging_conditional = false
+        elseif s2 then
+            s = e2
+            hanging_conditional = false
+        else
+            s = nil
+        end
+    end
+    until s == nil
+    return hanging_conditional
 end
 
 function export.compile_lines(text, name)
@@ -140,7 +169,7 @@ function export.compile_lines(text, name)
             print(line)
 
             -- if-elseif-else chain handling
-            hanging_conditional = check_conditional(line)
+            hanging_conditional = check_conditional(line, hanging_conditional)
             local stripped = line:gsub("^%s*#", "")
             table.insert(direc_lines, stripped)
             table.insert(ppenv._output, "")
