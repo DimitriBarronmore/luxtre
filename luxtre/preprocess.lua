@@ -52,7 +52,6 @@ local function change_macros(ppenv, line, count, name)
             line = line:gsub(macro, res)
         elseif type(res) == "function" then
             line = line:gsub(macro .. "%s-(%b())", function(args)
-                print("args ", args)
                 local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]%s", macro, args)
                 local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
                 if err then
@@ -166,7 +165,6 @@ function export.compile_lines(text, name)
             -- Special Directives
             -- #define syntax
             line = line:gsub("^%s*#%s*define%s+([^%s()]+)%s+(.+)$", "macros[\"%1\"] = [===[%2]===]")
-            print(line)
 
             -- if-elseif-else chain handling
             hanging_conditional = check_conditional(line, hanging_conditional)
