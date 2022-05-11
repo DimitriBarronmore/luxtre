@@ -2,6 +2,9 @@
 ---@module "grammar"
 --local grammar
 
+local path = (...):gsub("tokenate", "")
+local preprocess = require(path .. "preprocess")
+
 local export = {}
 
 --[[   INPUT STREAM   ]]--
@@ -103,13 +106,11 @@ end
 ---@return lux_inputstream
 function export.inputstream_from_text(text, name)
     text = text:gsub('\r\n?', "\n")
+    local lines = preprocess.compile_lines(text)._output
+
+
     ---@type lux_inputstream
-    local inpstr = { lines = {} }
-    for line in text:gmatch("[^\n]*\n?") do
-        if line:sub(-1) == "\n" then line = line:sub(1,-2) end
-        -- print(line)
-        table.insert(inpstr.lines, line)
-    end
+    local inpstr = { lines = lines }
     inpstr.current_line = math.min(1, #inpstr.lines)
     inpstr.current_index = 1
     inpstr.name = name or "<unknown>"
@@ -157,14 +158,12 @@ end
 
 ---@class lux_tokenstream
 ---@field tokens lux_token[]
----@field macros table
 ---@field _lines table
 local tokenstream_base = {}
 tokenstream_base.__index = tokenstream_base
 function export.new_tokenstream()
     local out = {}
     out.tokens = {}
-    out.macros = {}
     out._lines = {}
     return setmetatable(out, tokenstream_base)
 end
@@ -180,19 +179,6 @@ function tokenstream_base:_debug()
         msg = msg:format(k, v.type, v.value, v.position[1], v.position[2], v._before)
         print(msg)
     end
-end
-
---[[   MACRO MAKING   ]]--
-
-function tokenstream_base:create_macro(name, result, complex)
-    local macro = {type = "simple", name = name, result = result}
-    if complex then
-        macro.type = "complex"
-        macro.args = complex
-    end
-    -- self.macros[name] = macro
-    table.insert(self.macros, macro)
-    table.sort(self.macros, function(a,b) return #b.name < #a.name end)
 end
 
 
@@ -297,294 +283,6 @@ local function handle_multilinestr(pos, inpstr)
     end
 end
 
---[[   ARGUMENT DECOMPOSITION   ]]--
-
-local function grab_args(inpstr, position)
-    local args = {}
-    local chars = {}
-    local isnewline = false
-    while true do
-        if not isnewline then
-            inpstr:advance()
-        end
-        isnewline = false
-        local char = inpstr:peek()
-        if char == nil then
-            inpstr:nextLine()
-            if inpstr.current_line > #inpstr.lines then
-                inpstr:throw("unterminated argument list", position)
-            end
-            isnewline = true
-        elseif char:match("['\"]") then
-            local status, arg = handle_string(inpstr)
-            if status == false then
-                inpstr:throw("unfinished string", position)
-            elseif status == true then
-                table.insert(chars, arg)
-                inpstr:advance(arg:len()-1)
-            end
-        elseif char == "[" then
-            local status, arg = handle_multilinestr(1, inpstr)
-            if status == true then
-                table.insert(chars, arg)
-            elseif status == false then
-                inpstr:throw("unterminated multiline string", position)
-            elseif status == nil then
-                table.insert(chars, arg)
-            end
-        elseif char == "," then
-            local fullarg = table.concat(chars)
-            table.insert(args, fullarg)
-            chars = {}
-        elseif char == ')' then
-            local fullarg = table.concat(chars)
-            table.insert(args, fullarg)
-            inpstr:advance()
-            break
-        else
-            table.insert(chars, char)
-        end
-    end
-    return args
-end
-
---[[   DIRECTIVE FUNCTIONS   ]]--
-
-
-local function directive__define(inpstr, tokstr)
-    local chars = {}
-    local type = "simple"
-    while true do
-        inpstr:advance()
-        local char, position = inpstr:peek()
-        if char == " " then
-            if #chars > 0 then
-                break
-            end
-        elseif char == nil then
-            inpstr:throw("unfinished macro definition", position)
-        -- elseif char:match("[%a%d_]") then
-            -- table.insert(chars, char)
-        elseif char == "(" then
-            type = "complex"
-            break
-        else
-        -- inpstr:throw(("invalid character '%s' in macro definition"):format(char), position)
-        table.insert(chars, char)
-        end
-    end
-    local macroname = table.concat(chars)
-
-    if type == "simple" then
-        while true do 
-            inpstr:advance()
-            local char, position = inpstr:peek()
-            if char == nil then
-                inpstr:throw("unfinished macro definition", position)
-            elseif char == "(" then
-                type = "complex"
-                break
-            -- elseif inpstr:peekTo(2) == "as" then
-            elseif char ~= " " then
-                break
-            end
-        end
-    end
-
-    local args = {}
-    local used_args = {}
-    if type == "complex" then -- grab args
-        chars = {}
-        local postspace = false
-        local postvararg = false
-        local postchar = false
-        while true do
-            inpstr:advance()
-            local char, position = inpstr:peek()
-            if char == nil then
-                inpstr:throw("unterminated argument list", position)
-            elseif char == "," then
-                if postvararg then
-                    inpstr:throw("unexpected character ',' after '...'", position)
-                end
-                local fullarg = table.concat(chars)
-                if used_args[fullarg] then
-                    inpstr:throw("argument name used multiple times", position)
-                end
-                table.insert(args, fullarg)
-                used_args[fullarg] = true
-                chars = {}
-                postspace = false
-                postchar = false
-            elseif char == ')' then
-                local fullarg = table.concat(chars)
-                if fullarg ~= "" then
-                    if used_args[fullarg] then
-                        inpstr:throw("argument name used multiple times", position)
-                    end
-                    table.insert(args, fullarg)
-                    used_args[fullarg] = true
-                end
-                inpstr:advance()
-                break
-
-            elseif char:match("[%a%d_]") then
-                postchar = true
-                if postvararg then
-                    inpstr:throw(("unexpected character '%s' after '...'"):format(char), position)
-                end
-                if not postspace then
-                    table.insert(chars, char)
-                else
-                    inpstr:throw("expected ',' in argument list", position)
-                end
-            elseif char == " " then
-                if #chars > 0 then
-                    postspace = true
-                end
-            elseif inpstr:peekTo(3) == "..." and postchar == false then
-                postvararg = true
-                table.insert(args, "...")
-                inpstr:advance(2)
-            else
-                inpstr:throw(("unexpected character '%s' in argument name"):format(char), position)
-            end
-        end
-
-    end
-    -- print("args;", unpack(args))
-
-    chars = {}
-    -- if type == "simple" then --- grab result
-    while true do
-        local char, position = inpstr:peek()
-        if char == nil then
-            if #chars == 0 then
-                inpstr:throw("unfinished macro definition", position)
-            else
-                local result = table.concat(chars)
-                if result == "<void>" then result = "" end
-                if type == "complex" then
-                    tokstr:create_macro(macroname, result, args)
-                else
-                    tokstr:create_macro(macroname, result)
-                end
-                return
-            end
-        elseif char == " " then
-            if #chars > 0 then
-                table.insert(chars, char)
-            end
-        else
-            table.insert(chars, char)
-        end
-        inpstr:advance()
-    end
-end
-
---[[   DIRECTIVE/MACRO REDIRECTION   ]]--
-
-local function handle_directive(tokstr, inpstr, position)
-    local chars = {}
-    while true do -- find first word
-        inpstr:advance()
-        local char, position = inpstr:peek()
-        if char == nil then
-            if #chars > 0 then
-                -- inpstr:throw("incomplete directive", position)
-                break
-            else
-                inpstr:nextLine()
-                return
-            end
-        elseif char:match("[%a%d_]") then
-            table.insert(chars, char)
-        elseif char == " " then
-            if #chars > 0 then
-                break
-            end
-        else
-            inpstr:throw(("invalid character '%s' in directive"):format(char), position)
-        end
-    end
-    local command = table.concat(chars)
-
-    if command == "define" then -- Macros
-        directive__define(inpstr, tokstr)
-    else
-        inpstr:throw(("unimplemented directive '%s'"):format(command), position)
-
-    end
-
-end
-
-local function handle_macro(tokstr, inpstr, macrodef, position)
-    -- local macrodef = tokstr.macros[name]
-    local name = macrodef.name
-    if macrodef.type == "simple" then
-        if macrodef.result:find(macrodef.name) then
-            inpstr:throw("recursive macro", position)
-        end
-        inpstr:advance(name:len())
-        if macrodef.result ~= "" then
-            inpstr:splice(macrodef.result)
-        end
-    else
-        inpstr:advance(name:len())
-        local char, position = inpstr:peek()
-        while char == " " do
-            inpstr:advance()
-            char, position = inpstr:peek()
-        end
-        if char ~= "(" then
-            inpstr:throw("macro '" .. name .. "' requires arguments", position)
-        end
-        local args = grab_args(inpstr, position)
-        local outstring = macrodef.result
-        for i,arg in ipairs(macrodef.args) do
-            if arg == "..." then
-                local remaining = {unpack(args, i)}
-                outstring = outstring:gsub("%.%.%.", table.concat(remaining, ", "))
-            else
-                outstring = outstring:gsub(arg, args[i] or "")
-            end
-        end
-        if outstring:find(macrodef.name) then
-            inpstr:throw("recursive macro", position)
-        end
-        if outstring ~= "" then
-            inpstr:splice(outstring)
-        end
-    end
-end
-
-local function iterate_macros(tokstr, inpstr)
-local check_macros = true
-    while check_macros do -- check macros
-        -- print("loop")
-        if #tokstr.macros > 0 then
-            for i, macro in ipairs(tokstr.macros) do
-                -- print(i, macro.name)
-                local chars, pos = inpstr:peekTo(#macro.name)
-                -- print(chars)
-                if chars == macro.name then
-                    -- print "condsucc"
-                    handle_macro(tokstr, inpstr, macro, pos)
-                    return true, macro.name
-                else
-                    -- print "condfailed"
-                    if i == #tokstr.macros then
-                        check_macros = false
-                    end
-                end
-            end
-        else
-            -- print "no macros"
-            return false
-        end
-    end
-end
-
 --[[   TOKENIZATION   ]]--
 
 ---@param inpstr lux_inputstream
@@ -604,23 +302,11 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         end
         local check_symbol = false
 
-        status = iterate_macros(self, inpstr)
-
-        -- status = skip_to_significant(inpstr)
-        -- if status == false then
-        --     return
-        -- end
 
         -- local this_line = inpstr.lines[inpstr.current_line]
         local next_char, position = inpstr:peek(1)
 
-        if status == true then
-            --early return
-
-        elseif next_char == "#" and position[2] == 1 then -- Directive
-            handle_directive(self, inpstr, position)
-
-        elseif next_char:match("[%a_]") then -- Name / Macros / Keyword
+        if next_char:match("[%a_]") then -- Name / Macros / Keyword
             local pos = 2
             while true do
                 local char = inpstr:peek(pos)
