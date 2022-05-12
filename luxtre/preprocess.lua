@@ -71,8 +71,6 @@ end
 
 local macros_mt = {
     __newindex = function(t,k,v)
-        -- k = k:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1")
-        print(k)
         table.insert(t.__listed, k)
         rawset(t,k,v)
     end
