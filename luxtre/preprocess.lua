@@ -48,10 +48,11 @@ end
 local function change_macros(ppenv, line, count, name)
     for _, macro in ipairs(ppenv.macros.__listed) do
         local res = ppenv.macros[macro]
+        local fixedmacro = macro:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1")
         if type(res) == "string" then
-            line = line:gsub(macro, res)
+            line = line:gsub(fixedmacro, res:gsub("%%", "%%%%"))
         elseif type(res) == "function" then
-            line = line:gsub(macro .. "%s-(%b())", function(args)
+            line = line:gsub(fixedmacro .. "%s-(%b())", function(args)
                 local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]%s", macro, args)
                 local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
                 if err then
@@ -70,6 +71,8 @@ end
 
 local macros_mt = {
     __newindex = function(t,k,v)
+        -- k = k:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1")
+        print(k)
         table.insert(t.__listed, k)
         rawset(t,k,v)
     end
