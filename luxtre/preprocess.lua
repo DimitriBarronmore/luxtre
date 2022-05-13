@@ -45,12 +45,178 @@ end
       xpcall = xpcall
 }
 
+--states:
+-- need_left_parens (look for leftparen)
+-- between_args (ignore spaces)
+-- non_string (match chars and split on commas)
+-- in_string (try to exit the string)
+-- gather_multiline (for gathering the brackets)
+-- gather_multiline_closing
+-- in_multiline (try to exit the string)
+local function extract_args(iter_str)
+    local args = {}
+    local curr_arg = {}
+    local full_iter = {}
+    local current_state = "need_left_parens"
+    local string_type, last_char
+    local eq_count = 0
+    for char in iter_str:gmatch(".") do
+        table.insert(full_iter, char)
+        -- print(char)
+        if current_state == "need_left_parens" then
+            if not ( char:match("%s") or (char == "(") ) then
+                return false
+            elseif char == "(" then
+                current_state = "non_string"
+            end
+
+        elseif current_state == "inbetween_args" then
+            if not char:match("%s") then
+                current_state = "non_string"
+                    -- hotpatch in main state behavior
+                    if char == "," then
+                        table.insert(args, table.concat(curr_arg) or "")
+                        curr_arg = {}
+                        current_state = "inbetween_args"
+                    elseif char == ")" then
+                        table.insert(args, table.concat(curr_arg) or "")
+                        return args, table.concat(full_iter)
+                    elseif char == '"' or char == "'" then
+                        current_state = "in_string"
+                        string_type = char
+                        table.insert(curr_arg, char)
+                    elseif char == "[" then
+                        string_type = 0
+                        current_state = "gather_multiline"
+                        table.insert(curr_arg, char)
+                    else
+                        table.insert(curr_arg, char)
+                    end
+            end
+
+        elseif current_state == "non_string" then
+            if char == "," then
+                table.insert(args, table.concat(curr_arg) or "")
+                curr_arg = {}
+                current_state = "inbetween_args"
+            elseif char == ")" then
+                table.insert(args, table.concat(curr_arg) or "")
+                return args, table.concat(full_iter)
+            elseif char == '"' or char == "'" then
+                current_state = "in_string"
+                string_type = char
+                table.insert(curr_arg, char)
+            elseif char == "[" then
+                string_type = 0
+                current_state = "gather_multiline"
+                table.insert(curr_arg, char)
+            else
+                table.insert(curr_arg, char)
+            end
+
+        elseif current_state == "in_string" then
+            table.insert(curr_arg, char)
+            if char == string_type then
+                if last_char ~= "\\" then
+                    current_state = "non_string"
+                end
+            end
+
+        elseif current_state == "gather_multiline" then
+            if char == "=" then
+                string_type = string_type + 1
+                table.insert(curr_arg, char)
+            elseif char == "[" then
+                current_state = "in_multiline"
+                table.insert(curr_arg, char)
+            else
+                current_state = "non_string" -- quickpatch main state behavior
+                if char == "," then
+                    table.insert(args, table.concat(curr_arg) or "")
+                    curr_arg = {}
+                    current_state = "inbetween_args"
+                elseif char == ")" then
+                    table.insert(args, table.concat(curr_arg) or "")
+                    return args
+                elseif char == '"' or char == "'" then
+                    current_state = "in_string"
+                    string_type = char
+                    table.insert(curr_arg, char)
+                else
+                    table.insert(curr_arg, char)
+                end
+            end
+
+        elseif current_state == "in_multiline" then
+            if char == "]" and last_char ~= "\\" then
+                current_state = "gather_multiline_closing"
+            end
+            table.insert(curr_arg, char)
+
+        elseif current_state == "gather_multiline_closing" then
+            if char == "=" then
+                eq_count = eq_count + 1
+                if eq_count > string_type then
+                    eq_count = 0
+                    current_state = "in_multiline"
+                end
+            elseif char == "]" then
+                if eq_count == string_type then
+                    current_state = "non_string"
+                    eq_count = 0
+                else
+                    current_state = "in_multiline"
+                end
+            end
+            table.insert(curr_arg, char)
+        end
+        last_char = char
+    end
+    -- print("end of input")
+end
+
 local function change_macros(ppenv, line, count, name)
     for _, macro in ipairs(ppenv.macros.__listed) do
         local res = ppenv.macros[macro]
         local fixedmacro = macro:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1")
+
         if type(res) == "string" then
-            line = line:gsub(fixedmacro, res:gsub("%%", "%%%%"))
+            line = line:gsub(fixedmacro, ( res:gsub("%%", "%%%%")) )
+
+        elseif type(res) == "table" then
+            local s, e = 1,1
+            repeat
+                s, e = string.find(line, fixedmacro .. "%s*%(", e)
+                if s then
+                    local after = line:sub(e, -1)
+                    local args, full = extract_args(after)
+                    if args then
+                        -- print('args found')
+                        local fulltext = (fixedmacro .. full:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1"))
+                        line = line:gsub(fulltext, function()
+                           local result = res._res
+                        --    print(result)
+                            if #args < # res._args then
+                                for i = 1, #res._args - #args do
+                                    args[#args+1] = ""
+                                end
+                            end
+                            for i, argument in ipairs(args) do
+                                local argname = res._args[i]
+                                if argname and argname ~= "..." then
+                                    result = result:gsub(argname, (argument:gsub("%%","%%%%")) )
+                                elseif argname == "..." then
+                                    result = result:gsub("%.%.%.", table.concat(args, ", ", i))
+                                end
+                            end
+                           e = 1
+                           return result
+                        end)
+
+                    end
+                end
+            until s == nil
+
         elseif type(res) == "function" then
             line = line:gsub(fixedmacro .. "%s-(%b())", function(args)
                 local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]%s", macro, args)
@@ -58,19 +224,36 @@ local function change_macros(ppenv, line, count, name)
                 if err then
                     error(err,2)
                 end
-                local res = f()
+                local res = tostring(f())
                 if res == "" or res == nil then
                     res = " "
                 end
                 return res
             end)
         end
+
     end
     return line
 end
 
 local macros_mt = {
     __newindex = function(t,k,v)
+        local s, e, parens = k:find("(%b())$")
+        if s then
+            k = k:sub(1, s-1)
+            -- print(k)
+            parens = parens:sub(2,-1)
+            -- print(parens)
+            local argnames = {}
+
+            for arg in parens:gmatch("%s*([%a%d_ %.]+)[,)]") do
+                -- print(arg)
+                table.insert(argnames, arg)
+            end
+            v = {_args = argnames, _res = v}
+            -- print(v._res)
+        end
+
         table.insert(t.__listed, k)
         rawset(t,k,v)
     end
@@ -166,6 +349,13 @@ function export.compile_lines(text, name)
             -- Special Directives
             -- #define syntax
             line = line:gsub("^%s*#%s*define%s+([^%s()]+)%s+(.+)$", "macros[\"%1\"] = [===[%2]===]")
+            -- function-like define
+            line = line:gsub("^%s*#%s*define%s+([^%s]+%b())%s+(.+)$", "macros[\"%1\"] = [===[%2]===]")
+            -- blank define
+            line = line:gsub("^%s*#%s*define%s+([^%s()]+)%s*$", "macros[\"%1\"] = ''")
+            line = line:gsub("^%s*#%s*define%s+([^%s]+%b())%s*$", "macros[\"%1\"] = ''")
+
+            -- print(line)
 
             -- if-elseif-else chain handling
             hanging_conditional = check_conditional(line, hanging_conditional)
