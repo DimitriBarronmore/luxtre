@@ -111,7 +111,7 @@ print("reverse(world, hello)") --> 'print("hello world")'
 -- Function-like macros support '...' as a catchall last argument.
 -- The arguments collected are separated by a comma and a space, for use in function calls.
 # macros["discardfirst(first, ...)"] = "..."
-discardfirst(1,2,3) --> '2, 3'
+print(discardfirst(1,2,3)) --> 'print(2, 3)'
 
 -- This can be useful when combined with conditional logic.
 # if debug == "true" then
