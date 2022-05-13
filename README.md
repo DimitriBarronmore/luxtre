@@ -96,7 +96,7 @@ Macros can be defined as string keyed values in the `macros` table. There are th
 
 Macros are always evaluated in the order they were originally added, regardless of whether they have since been changed. This means that macros are fully deterministic in how they interact with each other.
 ```lua
--- Simple Macro
+-- Simple macros are simply a string key and a result.
 # macros.constant = "1000"
 print(constant) --> 'print(1000)'
 
@@ -104,7 +104,7 @@ print(constant) --> 'print(1000)'
 # macros["😂"] = ":joy:"
 print("😂") -- > 'print(":joy:")
 
--- Function-like Macro
+-- Function-like macros have pathethesised arguments in the key.
 # macros["reverse(arg1, arg2)"] = "arg2 arg1"
 print("reverse(world, hello)") --> 'print("hello world")'
 
@@ -112,12 +112,6 @@ print("reverse(world, hello)") --> 'print("hello world")'
 -- The arguments collected are separated by a comma and a space, for use in function calls.
 # macros["discardfirst(first, ...)"] = "..."
 print(discardfirst(1,2,3)) --> 'print(2, 3)'
-
--- This can be useful when combined with conditional logic.
-# if debug == "true" then
-#   macros["log(...)"] = "print(...)"
-# else
-#   macros["log(...)"] = ""
 
 -- Callback macros are executed entirely in the preprocessor.
 -- Any variable names passed will evaluate to preprocessor values.
@@ -131,6 +125,12 @@ print( "print_var(example_msg)" ) --> 'print( "hi there" )'
 -- All macros will delete themselves from the input if they return a blank string.
 # macros["<blank>"] = ""
 print(<blank>) --> 'print()'
+
+-- This can be useful when combined with conditional logic.
+# if debug == "true" then
+#   macros["log(...)"] = "print(...)"
+# else
+#   macros["log(...)"] = ""
 
 -- Simple and Function-Like macros can be defined more easily with #define syntax.
 -- #define <name>[parens] <result>
