@@ -218,18 +218,33 @@ local function change_macros(ppenv, line, count, name)
             until s == nil
 
         elseif type(res) == "function" then
-            line = line:gsub(fixedmacro .. "%s-(%b())", function(args)
-                local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]%s", macro, args)
-                local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
-                if err then
-                    error(err,2)
+            local s, e = 1,1
+            repeat
+                s, e = string.find(line, fixedmacro .. "%s*%(", e)
+                if s then
+                    local after = line:sub(e, -1)
+                    local args, full = extract_args(after)
+                    if args then
+                        print(full)
+                        print(table.concat(args, ", "))
+                        local full_match = fixedmacro .. full:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1")
+                        print(full_match)
+                        line = line:gsub(full_match, function()
+                            local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]( %s )", macro, table.concat(args, ", "))
+                            print(chunk)
+                            local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
+                            if err then
+                                error(err,2)
+                            end
+                            local res = tostring(f())
+                            if res == "" or res == nil then
+                                res = " "
+                            end
+                            return res
+                        end)
+                    end
                 end
-                local res = tostring(f())
-                if res == "" or res == nil then
-                    res = " "
-                end
-                return res
-            end)
+            until s == nil
         end
 
     end
