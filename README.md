@@ -30,7 +30,8 @@ luxtre.dostring("return -> print('hello world')")
 local tab = {foo: 1, bar: 2, buzz: 3}
 -- >> local tab = {foo = 1, bar = 2, buzz = 3}
 
--- Table constructors are automatically wrapped in parentheses when treated like a variable.
+-- Table constructors and string literals are automatically wrapped
+-- in parentheses when treated like expressions.
 {1, 2, 3}[1];  "string":rep(5)
 -- >> ({1, 2, 3})[1];  ("string"):rep(5)
 
@@ -71,7 +72,7 @@ The preprocessor is not yet complete, but in the current state it can be used to
 
 ### Conditional Lines
 
-Within a preprocessor `do`, `if`, `while`, `repeat`, or `for` block, input lines will only be written to the output dependent on the surrounding preprocessor code. 
+Within an unclosed preprocessor block (`do`, `if`, `while`, `repeat`, or `for`), input lines will only be written to the output dependent on the surrounding preprocessor code. 
 For example:
 ```lua
 # if hello then
@@ -90,13 +91,8 @@ print(
 "" )
 -- The final result concatenates "the end is never" with itself ten times. 
 ```
-
 ### Macros
-Macros can be defined as string keyed values in the `macros` table. 
-If the value give is a string, all instances of the key in the file will be replaced with the string. 
-If the value is a function, calls to the function will be replaced with the returned string.
-
-The macro can be blanked out entirely by setting the result to an empty string.
+Macros can be defined as string keyed values in the `macros` table. There are three types of macro: simple, function-like, and callback.
 
 Macros are always evaluated in the order they were originally added, regardless of whether they have since been changed. This means that macros are fully deterministic in how they interact with each other.
 ```lua
@@ -108,35 +104,43 @@ print(constant) --> 'print(1000)'
 # macros["😂"] = ":joy:"
 print("😂") -- > 'print(":joy:")
 
--- **WARNING:** Instances of '%' in a macro output MUST be 
--- escaped as '%%' if you don't to get strange errors.
+-- Function-like Macro
+# macros["reverse(arg1, arg2)"] = "arg2 arg1"
+print("reverse(world, hello)") --> 'print("hello world")'
 
--- Function Macro
-# macros["reverse"] = function(arg1, arg2)
-#   return arg2 .. " " .. arg1
-print("reverse("world", "hello")") --> 'print("hello world")'
+-- Function-like macros support '...' as a catchall last argument.
+-- The arguments collected are separated by a comma and a space, for use in function calls.
+# macros["discardfirst(first, ...)"] = "..."
+discardfirst(1,2,3) --> '2, 3'
 
--- Keep in mind that function macro detection is rather simple.
--- Arguments cannot contain an unmatched right parens, or things will break.
-print( "reverse(')', '(')" ) --> ERROR: unfinished string near <eof>
+-- This can be useful when combined with conditional logic.
+# if debug == "true" then
+#   macros["log(...)"] = "print(...)"
+# else
+#   macros["log(...)"] = ""
 
--- Note that function macros are executed entirely in the preprocessor.
--- Any varable names given as arguments will evaluate to those variables
--- in the preprocessor code.
+-- Callback macros are executed entirely in the preprocessor.
+-- Any variable names passed will evaluate to preprocessor values.
+-- The return value of the function is cast to a string and replaces the original text.
 # example_msg = "hi there"
 # macros.print_var = function(name)
 #   return name
 # end
 print( "print_var(example_msg)" ) --> 'print( "hi there" )'
 
--- Simple macros can be defined more easily with #define syntax.
--- If the line ends with at least two spaces, the macro will be blanked.
--- #define <name> <result>
+-- All macros will delete themselves from the input if they return a blank string.
+# macros["<blank>"] = ""
+print(<blank>) --> 'print()'
+
+-- Simple and Function-Like macros can be defined more easily with #define syntax.
+-- #define <name>[parens] <result>
 # define fizzbuzz "1 2 fizz 4 buzz fizz 7 8 fizz buzz"
-# define blank  
-            --^^ note the spaces
-print(fizzbuzz) --> 'print("1 2 fizz 4 buzz fizz 7 8 fizz buzz")'
-print(blank)    --> 'print()'
+# define add_bark(arg) barkargbark
+# define blank
+
+print(fizzbuzz)         --> 'print("1 2 fizz 4 buzz fizz 7 8 fizz buzz")'
+print("add_bark(woof)") --> 'print("barkwoofbark")'
+print(blank)            --> 'print()'
 ```
 
 # Command-line Use
