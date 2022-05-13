@@ -225,13 +225,9 @@ local function change_macros(ppenv, line, count, name)
                     local after = line:sub(e, -1)
                     local args, full = extract_args(after)
                     if args then
-                        print(full)
-                        print(table.concat(args, ", "))
                         local full_match = fixedmacro .. full:gsub("([%^$()%.[%]*+%-%?%%])", "%%%1")
-                        print(full_match)
                         line = line:gsub(full_match, function()
                             local chunk = string.rep("\n", count) .. string.format("return macros[\"%s\"]( %s )", macro, table.concat(args, ", "))
-                            print(chunk)
                             local f, err = load_func(chunk, name .. " (preprocessor", "t", ppenv)
                             if err then
                                 error(err,2)
