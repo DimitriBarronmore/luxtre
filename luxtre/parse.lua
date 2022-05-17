@@ -221,6 +221,10 @@ local function expand_error(array)
   for _, item in ipairs(last_set) do
     local next = item:next_symbol()
     if next and next.type ~= "match_rule" and not discovered[next.value] then
+      if next.type == "match_eof" then
+        return "\nexpected '<EOF>'"
+      end
+
       local working_tab
       if not (item.current_index == 1) then
         working_tab = stack_trace
@@ -350,7 +354,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
           -- log("end of input: skipped scan")
         else
           log(next_token.type, next_token.value)
-          if testscan(nextsym, next_token) then
+          if testscan(nextsym, next_token)
+          or ( nextsym.type == "match_eof" and tokenstr.tokens[current_set + 1] == nil ) then
             --successful scan
             local new_item = item:clone()
             new_item:advance()

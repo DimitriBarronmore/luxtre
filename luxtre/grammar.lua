@@ -44,6 +44,11 @@ local function generate_pattern(str, grammar)
         elseif string.sub(v,1,1) == "'" and string.sub(v,-1,-1) == "'" then
             subrule.type = "match_syms"
             subrule.value = string.sub(v,2,-2)
+
+        elseif v == "<EOF>" then
+          subrule.type = "match_eof"
+          subrule.value = "<EOF>"
+
         else
             subrule.type = "match_rule"
             subrule.value = v

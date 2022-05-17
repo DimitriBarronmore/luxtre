@@ -64,6 +64,8 @@ local ops = {
 
   local rules = {
 
+    {"chunk", "block <EOF>"},
+
     --blocks
 
     {"block", "block_2 block_3"},
@@ -282,7 +284,7 @@ grammar :_generate_nullable()
 local function generic_load(inputstream)
     local tokenstream = tokenate.new_tokenstream()
     tokenstream:tokenate_stream(inputstream, grammar)
-    local status, res = pcall(parse.earley_parse, grammar, tokenstream, "block")
+    local status, res = pcall(parse.earley_parse, grammar, tokenstream, "chunk")
     if status == false then
         local msg_start = string.find(res, "%d:", 1)
         error(string.sub(res, msg_start + 3), 3)
