@@ -351,17 +351,27 @@ function export.earley_parse(grammar, tokenstr, start_rule)
         local next_token = tokenstr.tokens[current_set]
         -- log(nextsym.type, nextsym.value)
         if not next_token then
+          if nextsym.type == "match_eof" then
+            local new_item = item:clone()
+            new_item:advance()
+            array:add_to(current_set + 1, new_item)
+          end
           -- log("end of input: skipped scan")
         else
-          log(next_token.type, next_token.value)
-          if testscan(nextsym, next_token)
-          or ( nextsym.type == "match_eof" and tokenstr.tokens[current_set + 1] == nil ) then
+          -- log(next_token.type, next_token.value)
+          -- print(nextsym.type, tokenstr.tokens[current_set + 1])
+          if testscan(nextsym, next_token) then
             --successful scan
             local new_item = item:clone()
             new_item:advance()
             array:add_to(current_set + 1, new_item)
             -- log "\nscan succeeded"
           -- else log "\nscan failed"
+          -- elseif  nextsym.type == "match_eof" then
+          --   print('matching eof', current_set)
+          --   if tokenstr.tokens[current_set + 1] == nil then
+          --     print "eof matched"
+          --   end
           end
         end
       end
@@ -417,6 +427,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
   end
 
   if success == false then
+    -- array:_debug("full")
     error(errmsg)
     -- print(errmsg)
   end
@@ -489,8 +500,12 @@ local function extract_rule_components(revarray, item)
     -- Scans
     else
       local checktoken = revarray.tokenstr.tokens[current_node[1]]
-      if testscan(check_rule, checktoken) then -- successful scan
+      if testscan(check_rule, checktoken)
+      or ( check_rule.type == "match_eof" and revarray.tokenstr.tokens[current_node[1] + 1] == nil ) then -- successful scan
         local new_node = current_node[1] + 1
+        if check_rule.type == "match_eof" then
+          checktoken = {value = "", _before = ""}
+        end
         if new_node == end_node and current_node[2] == #prule then
           local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
                          position = checktoken.position}
