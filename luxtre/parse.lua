@@ -222,7 +222,7 @@ local function expand_error(array)
     local next = item:next_symbol()
     if next and next.type ~= "match_rule" and not discovered[next.value] then
       if next.type == "match_eof" then
-        return "\nexpected '<EOF>'"
+        return "\nexpected '<eof>'"
       end
 
       local working_tab

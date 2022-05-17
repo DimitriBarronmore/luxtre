@@ -64,7 +64,7 @@ local ops = {
 
   local rules = {
 
-    {"chunk", "block <EOF>"},
+    {"chunk", "block <eof>"},
 
     --blocks
 

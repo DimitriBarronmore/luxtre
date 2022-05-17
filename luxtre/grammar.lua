@@ -45,9 +45,9 @@ local function generate_pattern(str, grammar)
             subrule.type = "match_syms"
             subrule.value = string.sub(v,2,-2)
 
-        elseif v == "<EOF>" then
+        elseif v == "<eof>" then
           subrule.type = "match_eof"
-          subrule.value = "<EOF>"
+          subrule.value = "<eof>"
 
         else
             subrule.type = "match_rule"
