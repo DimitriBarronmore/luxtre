@@ -213,6 +213,54 @@ local function testscan(nextsym, next_token)
       or (nextsym.type == "match_syms" and nextsym.value == next_token.value)
 end
 
+local function expand_error(array)
+  local stack_trace, backup, discovered = {}, {}, {}
+  local longest_name, longest_rule = 0, 0
+  local last_set = array[#array]
+  local errmsg = ""
+  for _, item in ipairs(last_set) do
+    local next = item:next_symbol()
+    if next and next.type ~= "match_rule" and not discovered[next.value] then
+      local working_tab
+      if not (item.current_index == 1) then
+        working_tab = stack_trace
+      else
+        working_tab = backup
+      end
+      local msgpart = { next.value, item }
+      table.insert(working_tab, msgpart)
+      discovered[next.value] = true
+
+      local name_len, rule_len = next.value:len(), item.result:len()
+      if name_len > longest_name then
+        longest_name = name_len
+      end
+      if rule_len > longest_rule then
+        longest_rule = rule_len
+      end
+    end
+  end
+  errmsg = errmsg .. "\nexpected:"
+
+  table.sort(stack_trace, function(a,b) return a[2].begins_at < b[2].begins_at end)
+  table.sort(backup, function(a,b) return a[2].result:len() < b[2].result:len() end)
+
+  local working_tab
+  if #stack_trace == 0 then
+    working_tab = backup
+  else
+    working_tab = stack_trace
+  end
+
+    for _, parts in ipairs(working_tab) do
+    errmsg = errmsg ..
+    "\n\t" .. ("'%s'%s  <==  %s"):format(parts[1], 
+                              string.rep(" ", longest_name - parts[1]:len()),
+                            parts[2]:_debug(false, longest_name, longest_rule))
+  end
+  return errmsg
+end
+
 --big parser
 function export.earley_parse(grammar, tokenstr, start_rule)
   if type(start_rule) ~= "string" then
@@ -325,10 +373,19 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     -- log(#array, #tokenstr.tokens)
     local last_token = tokenstr.tokens[#array]
     success = false
-    errmsg = "unexpected token\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
+    local type = last_token.type
+    if type == "String" then
+      type = last_token.type
+    else
+      type = "'" .. last_token.value .. "'"
+    end
+    errmsg = "unexpected token " .. type .. "\n" .. last_token.position[1] .. ":" .. last_token.position[2] .. "  "
     -- errmsg = errmsg .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]) .. "  <<<"
-    errmsg = errmsg .. tokenstr._lines[last_token.position[1]] .. "\n"
-      .. string.rep(" ", string.len(last_token.position[1] .. ":" .. last_token.position[2] .. " " .. string.sub(tokenstr._lines[last_token.position[1]],1,last_token.position[2]))) .. "^"
+    errmsg = errmsg .. tokenstr._lines[last_token.position[3]] .. "\n"
+      .. string.rep(" ", string.len(last_token.position[3] .. ":" .. last_token.position[2] .. " "
+      .. string.sub(tokenstr._lines[last_token.position[3]],1,last_token.position[2]))) .. "^"
+
+    errmsg = errmsg .. expand_error(array)
   else
   -- end
     local hasstart = false
@@ -342,6 +399,8 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     if not hasstart then
       success = false
       errmsg = "incomplete parse at end of input"
+
+      errmsg = errmsg .. expand_error(array)
       -- local missing = {}
       -- for _, item in ipairs(array[#array]) do
       --   if item:next_symbol() ~= nil then
