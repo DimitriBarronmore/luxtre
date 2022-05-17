@@ -51,6 +51,27 @@ i++
 func (args) -> print(args)
 -- >> func = function(args) print(args) end
 
+-- The argument list is entirely optional.
+-- Also, arrow lambdas will implicitly return single expressions.
+func -> "hello"
+-- >> func = function() return "hello" end
+
+-- You can expand a lambda to multiple expressions using a do-end block.
+clear_table (tab) -> do
+    for k,_ in pairs(tab) do
+        tab[k] = nil
+    end
+end
+--[[ >>
+    clear_table = function(tab)
+        do
+            for k,_ in pairs(tab) do
+                tab[k] = nil
+            end
+        end
+    end
+--]]
+
 -- Function decorators
 @decorator
 function somefunc(arguments, ...)
