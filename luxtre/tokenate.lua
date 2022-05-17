@@ -18,6 +18,7 @@ local export = {}
 ---@field current_line number
 ---@field current_index number
 ---@field lines string[]
+---@field linemap table
 ---@field name string
 ---@field source string
 local inputstream_base = {}
@@ -106,11 +107,10 @@ end
 ---@return lux_inputstream
 function export.inputstream_from_text(text, name)
     text = text:gsub('\r\n?', "\n")
-    local lines = preprocess.compile_lines(text)._output
-
+    local ppenv = preprocess.compile_lines(text)
 
     ---@type lux_inputstream
-    local inpstr = { lines = lines }
+    local inpstr = { lines = ppenv._output, linemap = ppenv._linemap }
     inpstr.current_line = math.min(1, #inpstr.lines)
     inpstr.current_index = 1
     inpstr.name = name or "<unknown>"
@@ -175,8 +175,10 @@ end
 
 function tokenstream_base:_debug()
     for k,v in ipairs(self.tokens) do
-        local msg = "%d | type: %s | value: %s | position: %d:%d | _before: (%s)"
-        msg = msg:format(k, v.type, v.value, v.position[1], v.position[2], v._before)
+        -- local msg = "%d | type: %s | value: %s | position: %d:%d | _before: (%s)"
+        -- msg = msg:format(k, v.type, v.value, v.position[1], v.position[2], v._before)
+        local msg = "%d | type: %s | value: %s | position: %d:%d"
+        msg = msg:format(k, v.type, v.value, v.position[1], v.position[2])
         print(msg)
     end
 end
@@ -305,6 +307,8 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
 
         -- local this_line = inpstr.lines[inpstr.current_line]
         local next_char, position = inpstr:peek(1)
+        position[3] = position[1]
+        position[1] = inpstr.linemap[position[1]]
 
         if next_char:match("[%a_]") then -- Name / Macros / Keyword
             local pos = 2
