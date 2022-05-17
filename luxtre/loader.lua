@@ -291,6 +291,31 @@ local function generic_load(inputstream)
     return ast.tree:print()
 end
 
+local function wrap_errors(output, outputchunk)
+    local check_err = function(...)
+        local status = { pcall(outputchunk, ...) }
+        if status[1] == false then
+            local err = status[2]
+            print("ERROR")
+            local _,_,cap = string.find(err, "%]:(%d+):")
+            local count = 0
+            local realline
+            for line in (output .. "\n"):gmatch(".-\n") do
+                count = count + 1
+                if tostring(count) == cap then
+                    realline = line
+                    break
+                end
+            end
+            err = err .. "\noriginal line:\n\t" .. realline:sub(1,-2)
+            error(err, 0)
+        else
+            return unpack(status, 2)
+        end
+    end
+    return check_err
+end
+
 ---@param filename string
 ---@param env table | nil
 ---Loads a .lux file by the given name and returns a chunk.
@@ -304,11 +329,13 @@ function module.loadfile(filename, env)
         error("file '" .. filename .. "' does not exist", 2)
     end
     local output = generic_load(res)
-    local output, err = load_func(output, filename, "t", env)
+    local outputchunk, err = load_func(output, filename, "t", env)
     if err then
         error(err, 0)
     end
-    return output
+
+    local safe_chunk = wrap_errors(output, outputchunk)
+    return safe_chunk
 end
 
 ---@param filename string
@@ -331,11 +358,13 @@ function module.loadstring(str, env)
     end
     local tokenstream = tokenate.inputstream_from_text(str)
     local output = generic_load(tokenstream)
-    local output, err = load_func(output, str, "t", env)
+    local outputchunk, err = load_func(output, str, "t", env)
     if err then
         error(err, 0)
     end
-    return output
+
+    local safe_chunk = wrap_errors(output, outputchunk)
+    return safe_chunk
 end
 
 ---@param str string
