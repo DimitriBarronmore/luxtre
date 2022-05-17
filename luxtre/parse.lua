@@ -487,10 +487,12 @@ local function extract_rule_components(revarray, item)
       if testscan(check_rule, checktoken) then -- successful scan
         local new_node = current_node[1] + 1
         if new_node == end_node and current_node[2] == #prule then
-          local info = {type = "scan", value = checktoken.value, _before = checktoken._before}
+          local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
+                         position = checktoken.position}
           return grab_children({new_node, current_node[2] + 1, current_node, info})
         elseif current_node[2] + 1 <= #prule then
-          local info = {type = "scan", value = checktoken.value, _before = checktoken._before}
+          local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
+                         position = checktoken.position}
           stack:push({new_node, current_node[2] + 1, current_node, info} )
         end
       end
@@ -511,7 +513,7 @@ print_items = function(branch, indent)
       print(indentstr .. v.value:_debug())
       print_items(v, indent + 4)
     else
-      print(indentstr .. v.type .. ": " .. v.value )
+      print(indentstr .. v.type .. ": " .. v.value .. " | " .. v.position[1] )
     end
   end
 end
