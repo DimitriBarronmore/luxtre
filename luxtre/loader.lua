@@ -126,8 +126,8 @@ local ops = {
     {"var", "Name"},
     {"var", "prefixexp '[' exp ']'"},
     {"var", "prefixexp '.' Name"},
-    
-    
+
+
     {"var", "tableconstructor", [["(" .. $1 .. ")"]] },
     {"var", "String", [["(" .. $1 .. ")"]] },
 
@@ -190,20 +190,24 @@ local ops = {
     {"exp", "arrowdef"},
     {"exp", "fatarrowdef"},
 
+    {"lambdstat", "stat"},
+    {"lambdstat", "return_stat"},
+    {"lambdstat", "exp", [["return " .. $1]]},
+
     {"stat","var arrowdef", [[$1 .. " = " .. $2]]},
     {"stat","local Name arrowdef", [["local " .. $2 .. " = " .. $3]]},
     {"stat","var fatarrowdef", [[$1 .. " = " .. $2]]},
     {"stat","local Name fatarrowdef", [["local " .. $2 .. " = " .. $3]]},
     
 
-    {"arrowdef", "args '->' stat", [["function" .. $1 .. " " .. $3 .. " end"]]},
-    {"arrowdef", "'->' stat", [["function() ".. $2 .. " end"]]},
+    {"arrowdef", "args '->' lambdstat", [["function" .. $1 .. " " .. $3 .. " end"]]},
+    {"arrowdef", "'->' lambdstat", [["function() ".. $2 .. " end"]]},
 
     {"shorthandargs", "'(' exp_list ')'", [[$2]] },
     {"emptyargs", "'(' ')'", "" },
-    {"fatarrowdef", "shorthandargs '=>' stat", [["function(self," .. $1 .. ") " .. $3 .. " end"]]},
-    {"fatarrowdef", "emptyargs '=>' stat", [["function(self) " .. $3 .. " end"]]},
-    {"fatarrowdef", "'=>' stat", [["function(self) ".. $2 .. " end"]]},
+    {"fatarrowdef", "shorthandargs '=>' lambdstat", [["function(self," .. $1 .. ") " .. $3 .. " end"]]},
+    {"fatarrowdef", "emptyargs '=>' lambdstat", [["function(self) " .. $3 .. " end"]]},
+    {"fatarrowdef", "'=>' lambdstat", [["function(self) ".. $2 .. " end"]]},
 
     --function decorators
     -- {"funcdecorator", "'@' funcname"},
