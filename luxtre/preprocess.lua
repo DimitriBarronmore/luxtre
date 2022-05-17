@@ -353,8 +353,9 @@ function export.compile_lines(text, name)
     for line in (text .. "\n"):gmatch(".-\n") do
         line = line:gsub("\n", "")
         count = count + 1
-        if line:match("^%s*#") 
-          and not line:match("^#!")
+        if count == 1 and line:match("^#!") then
+            -- empty block
+        elseif line:match("^%s*#")
           and not in_string then -- DIRECTIVES  
 
             -- Special Directives
