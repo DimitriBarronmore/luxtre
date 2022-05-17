@@ -354,7 +354,8 @@ function export.compile_lines(text, name)
         line = line:gsub("\n", "")
         count = count + 1
         if count == 1 and line:match("^#!") then
-            -- empty block
+            table.insert(ppenv._output, "")
+            ppenv._linemap[#ppenv._output] = count
         elseif line:match("^%s*#")
           and not in_string then -- DIRECTIVES  
 
