@@ -1,8 +1,8 @@
 --- Grammars ---
 
-local newGrammar = require("grammar")
-local tokenate = require "tokenate"
-local parse = require "parse"
+local newGrammar = require("luxtre.parser.grammar")
+local tokenate = require "luxtre.parser.tokenate"
+local parse = require "luxtre.parser.parse"
 
 local keys = {
     "break",
