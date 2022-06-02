@@ -1,0 +1,212 @@
+--[[
+    - **scoped data**
+    - get/manipulate scope on top
+	- add scope to stack
+	- pop scope from stack
+
+alter function signature; sneak in extra info
+	token:print( out, line = out.line)
+	children are in array part of self
+	access to vars:
+		out - the relevant output class
+
+**output class:**
+	:do_once() - do the specified thing only the first time the token matches
+	.scope - the current topmost scope 
+		:push() - add new layer to stack
+		:pop() - remove top layer from stack
+	.line - the current line object (note: may span multiple lines of real output)
+		:add_before() - add and return a line before the one being edited
+		:add_after() - add and return a line after the one being edited
+		:add_top() - add and return a line at the top of the file
+		:add_bottom() - add and return a line at the bottom of the file
+        :newline() - replace the current working line
+		:write(str: text) - add text to the line object
+		:write(leaf_obj) - run the leaf's print in given line
+		- all functions return object for chaining
+--]]
+
+--[[
+        CONCEPT: SECOND DRAFT
+    File output is split into three sections:
+    The HEADER, BODY, and FOOTER.
+
+    The HEADER is a collection of single lines at the very top of the file.
+    This section is used for things such as resolving pre-declared values
+      (such as the _export table) or executing specific shared code.
+
+    The FOOTER is the same as the header, but at the very bottom of the file.
+    This section is used for final wrap-up, such as returning the file's exported values.
+
+    Grammars can declare special header/footer lines which will always be
+      inserted at the very beginning or end of the file, suitable for things
+      such as locking a file into a sandbox or forcing it to return a module.
+
+    The BODY is the main content of the code, and the main concern of the grammar.
+    BODY lines are executed in CHUNKS, collections of a few related lines at a time.
+
+    Within a CHUNK, lines to edit are stored on a stack. Output rules have the ability
+      to create new header and footer lines, create new lines positioned before/after the
+      current working line, in the chunk, and push/pop lines to the stack to change the
+      current working line.
+
+    Output is always written to the current working line, and rules are responsible for
+      managing the stack responsibly and cleaning up after themselves.
+
+    When a chunk is complete, the lines are added to the compiled BODY and a new chunk
+      is put in position for editing.
+    When the end of the file is reached, the HEADER, BODY, and FOOTER are added together
+      and the final lines written to the output.
+
+    Most rules will not need to create new lines. When a line/chunk is created, the creating rule is
+      responsible for assigning the source line number.
+]]
+
+---@class outp_line
+---@field _chunk lux_output
+local line = {}
+line.__index = line
+
+function line:append(text)
+    table.insert(self, tostring(text))
+    return self
+end
+
+function line:pop()
+    self._chunk:pop()
+    -- table.remove(self._chunk.stack)
+end
+
+
+---@class lux_output
+---@field header table
+---@field footer table
+---@field body table
+---@field stack table
+---@field array table
+local output = {}
+output.__index = output
+
+---@return outp_line
+function output:new_line()
+    local ln = {}
+    ln._chunk = self
+    return setmetatable(ln, line)
+end 
+
+function output:push_prior()
+    local index = 1
+    for i, v in ipairs(self.array) do
+        if v == self.stack[#self.stack] then
+            index = i
+        end
+    end
+    local line = self:new_line()
+    self:_push(line, index)
+    -- table.insert(self.array, index, line)
+    return line
+end
+
+function output:push_next()
+    local index = 1
+    for i, v in ipairs(self.array) do
+        if v == self.stack[#self.stack] then
+            index = i + 1
+        end
+    end
+    local line = self:new_line()
+    self:_push(line, index)
+    -- table.insert(self.array, index, line)
+    return line
+end
+
+function output:push_header()
+    local line = self:new_line()
+    table.insert(self.header, line)
+    table.insert(self.stack, line)
+    return line
+end
+
+function output:push_footer()
+    local line = self:new_line()
+    table.insert(self.footer, line)
+    table.insert(self.stack, line)
+    return line
+end
+
+function output:_push(line, index)
+    line = line or self:new_line()
+    index = index or #self.array + 1
+    table.insert(self.array, index, line)
+    table.insert(self.stack, line)
+
+    return line
+end
+
+function output:pop()
+    table.remove(self.stack)
+end
+
+function output:line()
+    return self.stack[#self.stack]
+end
+
+function output:flush()
+    table.insert(self.body, self.array)
+    self.array = {}
+    self.stack = {}
+    self:_push()
+end
+
+function output:print()
+    self:flush()
+    local concat = {}
+    for _, line in ipairs(self.header) do
+        table.insert(concat,(table.concat(line, " ")))
+    end
+    table.insert(concat,"----")
+    for _, chunk in ipairs(self.body) do
+        for _, line in ipairs(chunk) do
+            table.insert(concat,(table.concat(line, " ")))
+        end
+    end
+    table.insert(concat,"---")
+    for _, line in ipairs(self.footer) do
+        table.insert(concat,(table.concat(line, " ")))
+    end
+    return table.concat(concat, "\n")
+end
+
+
+---@return lux_output
+local function new_output()
+    local out = {}
+    out.header = {}
+    out.footer = {}
+    out.body = {}
+
+    out.stack = {}
+    out.array = {}
+    setmetatable(out, output)
+    out:_push()
+    return out
+end
+
+local ch = new_output()
+ch:line():append("hi"):append("world")
+
+local line2 = ch:push_prior():append("pre")
+
+ch:push_next()
+ch:line():append("lovely day")
+ch:pop()
+ch:line():append("pre2")
+
+ch:push_header():append("header 1")
+ch:line():append("boop"):pop()
+ch:push_footer():append("footer 1"):pop()
+ch:push_header():append("header 2"):pop()
+ch:push_footer():append("footer 2"):pop()
+
+
+print(ch:print())
