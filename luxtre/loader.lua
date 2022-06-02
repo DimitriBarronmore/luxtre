@@ -12,10 +12,10 @@
 --]]
 local path = (...):gsub("loader", "")
 
-local newGrammar = require(path .. "grammar")
-local tokenate = require(path .. "tokenate")
-local parse = require(path .. "parse")
-local load_func = require(path .. "safeload")
+local newGrammar = require(path .. "parser.grammar")
+local tokenate = require(path .. "parser.tokenate")
+local parse = require(path .. "parser.parse")
+local load_func = require(path .. "utils.safeload")
 
 local module = {}
 

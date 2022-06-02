@@ -1,6 +1,6 @@
-local path = (...):gsub("preprocess", "")
+local path = (...):gsub("parser[./\\]preprocess", "")
 
-local load_func = require(path .. "safeload")
+local load_func = require(path .. "utils.safeload")
 
 local unpack = unpack
 if _VERSION > "Lua 5.1" then
