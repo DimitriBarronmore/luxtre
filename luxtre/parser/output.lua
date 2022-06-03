@@ -79,11 +79,11 @@ end
 
 
 ---@class lux_output
----@field header table
----@field footer table
----@field body table
----@field stack table
----@field array table
+---@field _header table
+---@field _footer table
+---@field _body table
+---@field _stack table
+---@field _array table
 local output = {}
 output.__index = output
 
@@ -96,82 +96,82 @@ end
 
 function output:push_prior()
     local index = 1
-    for i, v in ipairs(self.array) do
-        if v == self.stack[#self.stack] then
+    for i, v in ipairs(self._array) do
+        if v == self._stack[#self._stack] then
             index = i
         end
     end
     local line = self:new_line()
     self:_push(line, index)
-    -- table.insert(self.array, index, line)
+    -- table.insert(self._array, index, line)
     return line
 end
 
 function output:push_next()
     local index = 1
-    for i, v in ipairs(self.array) do
-        if v == self.stack[#self.stack] then
+    for i, v in ipairs(self._array) do
+        if v == self._stack[#self._stack] then
             index = i + 1
         end
     end
     local line = self:new_line()
     self:_push(line, index)
-    -- table.insert(self.array, index, line)
+    -- table.insert(self._array, index, line)
     return line
 end
 
 function output:push_header()
     local line = self:new_line()
-    table.insert(self.header, line)
-    table.insert(self.stack, line)
+    table.insert(self._header, line)
+    table.insert(self._stack, line)
     return line
 end
 
 function output:push_footer()
     local line = self:new_line()
-    table.insert(self.footer, line)
-    table.insert(self.stack, line)
+    table.insert(self._footer, line)
+    table.insert(self._stack, line)
     return line
 end
 
 function output:_push(line, index)
     line = line or self:new_line()
-    index = index or #self.array + 1
-    table.insert(self.array, index, line)
-    table.insert(self.stack, line)
+    index = index or #self._array + 1
+    table.insert(self._array, index, line)
+    table.insert(self._stack, line)
 
     return line
 end
 
 function output:pop()
-    table.remove(self.stack)
+    table.remove(self._stack)
 end
 
 function output:line()
-    return self.stack[#self.stack]
+    return self._stack[#self._stack]
 end
 
 function output:flush()
-    table.insert(self.body, self.array)
-    self.array = {}
-    self.stack = {}
+    table.insert(self._body, self._array)
+    self._array = {}
+    self._stack = {}
     self:_push()
 end
 
 function output:print()
     self:flush()
     local concat = {}
-    for _, line in ipairs(self.header) do
+    for _, line in ipairs(self._header) do
         table.insert(concat,(table.concat(line, " ")))
     end
     table.insert(concat,"----")
-    for _, chunk in ipairs(self.body) do
+    for _, chunk in ipairs(self._body) do
         for _, line in ipairs(chunk) do
             table.insert(concat,(table.concat(line, " ")))
         end
     end
     table.insert(concat,"---")
-    for _, line in ipairs(self.footer) do
+    for _, line in ipairs(self._footer) do
         table.insert(concat,(table.concat(line, " ")))
     end
     return table.concat(concat, "\n")
@@ -181,12 +181,12 @@ end
 ---@return lux_output
 local function new_output()
     local out = {}
-    out.header = {}
-    out.footer = {}
-    out.body = {}
+    out._header = {}
+    out._footer = {}
+    out._body = {}
 
-    out.stack = {}
-    out.array = {}
+    out._stack = {}
+    out._array = {}
     setmetatable(out, output)
     out:_push()
     return out
