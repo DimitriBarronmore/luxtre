@@ -79,12 +79,20 @@ grammar:
 local grammar_core = {}
 grammar_core.__index = grammar_core
 
-local generic_post = function(self)
-    local concat = {}
-    for _,v in ipairs(self.children) do
-        table.insert(concat, v:print())
-    end
-    return table.concat(concat, "")
+-- local generic_post = function(self)
+--     local concat = {}
+--     for _,v in ipairs(self.children) do
+--         table.insert(concat, v:print())
+--     end
+--     return table.concat(concat, "")
+-- end
+
+local generic_post = function(self, outp)
+  local ln = outp:line()
+  for _,v in ipairs(self.children) do
+    v:print(outp)
+    -- ln:append(v:print(outp))
+  end
 end
 
 ---@param name string
@@ -99,14 +107,15 @@ function grammar_core:addRule(name, rule, post)
     self._list[name] = {}
   end
   local final = generate_pattern(rule, self)
-  if post then
-    post = post:gsub("%$(%d)", "self.children[%1]:print()")
-    local post_func = "return function(self) return " 
-      .. post .. " end"
-    final.post = load_string_function(post_func)()
-  else
-    final.post = generic_post
-  end
+  -- if post then
+  --   post = post:gsub("%$(%d)", "self.children[%1]:print()")
+  --   local post_func = "return function(self) return " 
+  --     .. post .. " end"
+  --   final.post = load_string_function(post_func)()
+  -- else
+  --   final.post = generic_post
+  -- end
+  if not post then final.post = generic_post end
   final.pattern = rule
   final._result = name
   table.insert(self._list[name], final)

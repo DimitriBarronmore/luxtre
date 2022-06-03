@@ -225,26 +225,29 @@ local function new_output()
     return out
 end
 
-local ch = new_output()
-ch:line():append("hi"):append("world")
-ch.scope.test = "ttt"
-ch:line():append(ch.scope.test)
+-- local ch = new_output()
+-- ch:line():append("hi"):append("world")
+-- ch.scope.test = "ttt"
+-- ch:line():append(ch.scope.test)
 
-local line2 = ch:push_prior():append("pre")
+-- local line2 = ch:push_prior():append("pre")
 
-ch:push_next()
-ch.scope:push()
-ch.scope.test = " innit"
-ch:line():append("lovely day" .. ch.scope.test)
-ch:pop()
-ch.scope:pop()
-ch:line():append("pre2")
+-- ch:push_next()
+-- ch.scope:push()
+-- ch.scope.test = " innit"
+-- ch:line():append("lovely day" .. ch.scope.test)
+-- ch:pop()
+-- ch.scope:pop()
+-- ch:line():append("pre2")
 
-ch:push_header():append("header 1")
-ch:line():append("boop " .. ch.scope.test):pop()
-ch:push_footer():append("footer 1"):pop()
-ch:push_header():append("header 2"):pop()
-ch:push_footer():append("footer 2"):pop()
+-- ch:push_header():append("header 1")
+-- ch:line():append("boop " .. ch.scope.test):pop()
+-- ch:push_footer():append("footer 1"):pop()
+-- ch:push_header():append("header 2"):pop()
+-- ch:push_footer():append("footer 2"):pop()
 
 
-print(ch:print())
+-- print(ch:print())
+
+
+return new_output

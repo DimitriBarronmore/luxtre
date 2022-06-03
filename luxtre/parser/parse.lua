@@ -538,7 +538,8 @@ print_items = function(branch, indent)
   end
 end
 
-local generic_print = function(self) return (self._before or "") .. self.value end
+local generic_print = function(self, outp) outp:line():append(self.value) end
+-- local generic_print = function(self) return (self._before or "") .. self.value end
 
 --- take in an item in the format, expand it
 local recurse_tree

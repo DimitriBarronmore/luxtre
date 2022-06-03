@@ -15,6 +15,7 @@ local path = (...):gsub("loader", "")
 local newGrammar = require(path .. "parser.grammar")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
+local new_output = require(path .. "parser.output")
 local load_func = require(path .. "utils.safeload")
 
 local module = {}
@@ -128,8 +129,8 @@ local ops = {
     {"var", "prefixexp '.' Name"},
 
 
-    {"var", "tableconstructor", [["(" .. $1 .. ")"]] },
-    {"var", "String", [["(" .. $1 .. ")"]] },
+    -- {"var", "tableconstructor", [["(" .. $1 .. ")"]] },
+    -- {"var", "String", [["(" .. $1 .. ")"]] },
 
     {"name_list", "Name name_list_2"},
     {"name_list_2", "',' Name name_list_2"},
@@ -151,17 +152,18 @@ local ops = {
     {"exp", "prefixexp"},
     {"exp", "tableconstructor"},
     {"exp", "exp binop exp"},
-    {"exp", "unop exp", [[$1 .. $2]]},
+    {"exp", "unop exp"},
+    -- {"exp", "unop exp", [[$1 .. $2]]},
 
     -- augmented assignment
 
-    {"stat", "exp '+=' exp", [[$1 .. " = " .. $1 .. " + (" .. $3 .. ")"]]},
-    {"stat", "exp '-=' exp", [[$1 .. " = " .. $1 .. " - (" .. $3 .. ")"]]},
-    {"stat", "exp '*=' exp", [[$1 .. " = " .. $1 .. " * (" .. $3 .. ")"]]},
-    {"stat", "exp '/=' exp", [[$1 .. " = " .. $1 .. " / (" .. $3 .. ")"]]},
-    {"stat", "exp '%=' exp", [[$1 .. " = " .. $1 .. " % (" .. $3 .. ")"]]},
-    {"stat", "exp '^=' exp", [[$1 .. " = " .. $1 .. " ^ (" .. $3 .. ")"]]},
-    {"stat", "var '++'", [[$1 .. " = " .. $1 .. " + 1"]]},
+    -- {"stat", "exp '+=' exp", [[$1 .. " = " .. $1 .. " + (" .. $3 .. ")"]]},
+    -- {"stat", "exp '-=' exp", [[$1 .. " = " .. $1 .. " - (" .. $3 .. ")"]]},
+    -- {"stat", "exp '*=' exp", [[$1 .. " = " .. $1 .. " * (" .. $3 .. ")"]]},
+    -- {"stat", "exp '/=' exp", [[$1 .. " = " .. $1 .. " / (" .. $3 .. ")"]]},
+    -- {"stat", "exp '%=' exp", [[$1 .. " = " .. $1 .. " % (" .. $3 .. ")"]]},
+    -- {"stat", "exp '^=' exp", [[$1 .. " = " .. $1 .. " ^ (" .. $3 .. ")"]]},
+    -- {"stat", "var '++'", [[$1 .. " = " .. $1 .. " + 1"]]},
 
     --functions
 
@@ -187,50 +189,52 @@ local ops = {
     {"paramlist", "'...'"},
 
     -- arrow functions
-    {"exp", "arrowdef"},
-    {"exp", "fatarrowdef"},
 
-    {"lambdstat", "stat"},
-    {"lambdstat", "return_stat"},
-    {"lambdstat", "exp", [["return " .. $1]]},
+    -- {"exp", "arrowdef"},
+    -- {"exp", "fatarrowdef"},
 
-    {"stat","var arrowdef", [[$1 .. " = " .. $2]]},
-    {"stat","local Name arrowdef", [["local " .. $2 .. " = " .. $3]]},
-    {"stat","var fatarrowdef", [[$1 .. " = " .. $2]]},
-    {"stat","local Name fatarrowdef", [["local " .. $2 .. " = " .. $3]]},
+    -- {"lambdstat", "stat"},
+    -- {"lambdstat", "return_stat"},
+    -- {"lambdstat", "exp", [["return " .. $1]]},
+
+    -- {"stat","var arrowdef", [[$1 .. " = " .. $2]]},
+    -- {"stat","local Name arrowdef", [["local " .. $2 .. " = " .. $3]]},
+    -- {"stat","var fatarrowdef", [[$1 .. " = " .. $2]]},
+    -- {"stat","local Name fatarrowdef", [["local " .. $2 .. " = " .. $3]]},
     
 
-    {"arrowdef", "args '->' lambdstat", [["function" .. $1 .. " " .. $3 .. " end"]]},
-    {"arrowdef", "'->' lambdstat", [["function() ".. $2 .. " end"]]},
+    -- {"arrowdef", "args '->' lambdstat", [["function" .. $1 .. " " .. $3 .. " end"]]},
+    -- {"arrowdef", "'->' lambdstat", [["function() ".. $2 .. " end"]]},
 
-    {"shorthandargs", "'(' exp_list ')'", [[$2]] },
-    {"emptyargs", "'(' ')'", "" },
-    {"fatarrowdef", "shorthandargs '=>' lambdstat", [["function(self," .. $1 .. ") " .. $3 .. " end"]]},
-    {"fatarrowdef", "emptyargs '=>' lambdstat", [["function(self) " .. $3 .. " end"]]},
-    {"fatarrowdef", "'=>' lambdstat", [["function(self) ".. $2 .. " end"]]},
+    -- {"shorthandargs", "'(' exp_list ')'", [[$2]] },
+    -- {"emptyargs", "'(' ')'", "" },
+    -- {"fatarrowdef", "shorthandargs '=>' lambdstat", [["function(self," .. $1 .. ") " .. $3 .. " end"]]},
+    -- {"fatarrowdef", "emptyargs '=>' lambdstat", [["function(self) " .. $3 .. " end"]]},
+    -- {"fatarrowdef", "'=>' lambdstat", [["function(self) ".. $2 .. " end"]]},
 
     --function decorators
     -- {"funcdecorator", "'@' funcname"},
-    {"decoratedfunc", "'@' funcname function funcname funcbody",
-        [[$4 .. " = " .. $2 .. "(function" .. $5 .. ")"]]},
 
-    {"decoratedfunc", "'@' funcname local function funcname funcbody",
-        [["local " .. $5 .. " = " .. $2 .. "(function" .. $6 .. ")"]]},
+    -- {"decoratedfunc", "'@' funcname function funcname funcbody",
+    --     [[$4 .. " = " .. $2 .. "(function" .. $5 .. ")"]]},
 
-    {"decoratedfunc", "'@' funcname var arrowdef",
-      [[$3 .. " = " .. $2 .. "( " .. $4 .. " )" ]]},
+    -- {"decoratedfunc", "'@' funcname local function funcname funcbody",
+    --     [["local " .. $5 .. " = " .. $2 .. "(function" .. $6 .. ")"]]},
 
-    {"decoratedfunc", "'@' funcname local Name arrowdef",
-      [["local " .. $4 .. " = " .. $2 .. "( " .. $5 .. " )" ]]},
+    -- {"decoratedfunc", "'@' funcname var arrowdef",
+    --   [[$3 .. " = " .. $2 .. "( " .. $4 .. " )" ]]},
 
-    {"decoratedfunc", "'@' funcname var fatarrowdef",
-      [[$3 .. " = " .. $2 .. "( " .. $4 .. " )" ]]},
+    -- {"decoratedfunc", "'@' funcname local Name arrowdef",
+    --   [["local " .. $4 .. " = " .. $2 .. "( " .. $5 .. " )" ]]},
 
-    {"decoratedfunc", "'@' funcname local Name fatarrowdef",
-      [["local " .. $4 .. " = " .. $2 .. "( " .. $5 .. " )" ]]},
+    -- {"decoratedfunc", "'@' funcname var fatarrowdef",
+    --   [[$3 .. " = " .. $2 .. "( " .. $4 .. " )" ]]},
+
+    -- {"decoratedfunc", "'@' funcname local Name fatarrowdef",
+    --   [["local " .. $4 .. " = " .. $2 .. "( " .. $5 .. " )" ]]},
 
 
-    {"stat", "decoratedfunc"},
+    -- {"stat", "decoratedfunc"},
 
     -- {"stat","function funcname funcbody"},
     --   {"stat","local function Name funcbody"},
@@ -251,7 +255,7 @@ local ops = {
     {"field", "exp"},
     
     {"fieldass", "'='"},
-    {"fieldass", "':'", [[" ="]]},
+    -- {"fieldass", "':'", [[" ="]]},
 
     {"fieldsep", "','"},
     {"fieldsep", "';'"},
@@ -271,11 +275,11 @@ local ops = {
     {"binop", "'>='"},
     {"binop", "'=='"},
     {"binop", "'~='"},
-    {"binop", "'and'", [[" and "]]},
-    {"binop", "'or'", [[" or "]]},
+    {"binop", "'and'"},
+    {"binop", "'or'"},
 
     {"unop", "'-'"},
-    {"unop", "not", [[" not "]]},
+    {"unop", "not"},
     {"unop", "'#'"}
 }
 
@@ -294,7 +298,11 @@ local function generic_load(inputstream)
         error(string.sub(res, msg_start + 3), 3)
     end
     local ast = parse.extract_parsetree(res)
-    return ast.tree:print()
+    local output = new_output()
+    ast.tree:print(output)
+    -- print(output:print())
+    return output:print()
+    -- return ast.tree:print()
 end
 
 local function wrap_errors(output, outputchunk)
