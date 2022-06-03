@@ -77,6 +77,36 @@ function line:pop()
     -- table.remove(self._chunk.stack)
 end
 
+---@class lux_output_scope
+---@field _chunk lux_output
+local scope = {}
+-- scope.__index = scope
+local new_scope
+
+local function scope_push(self)
+    local ch = self._chunk
+    local newscope = new_scope(ch, self)
+    ch.scope = newscope
+end
+
+local function scope_pop(self)
+    local ch = self._chunk
+    ch.scope = self.__index
+end
+
+function new_scope(output, prev)
+    local t = {}
+    t.__index = prev
+    t.push = scope_push
+    t.pop = scope_pop
+    t._chunk = output
+    return setmetatable(t,t)
+end
+
+
+
+
+
 
 ---@class lux_output
 ---@field _header table
@@ -84,6 +114,7 @@ end
 ---@field _body table
 ---@field _stack table
 ---@field _array table
+---@field scope table
 local output = {}
 output.__index = output
 
@@ -188,22 +219,29 @@ local function new_output()
     out._stack = {}
     out._array = {}
     setmetatable(out, output)
+
+    out.scope = new_scope(out)
     out:_push()
     return out
 end
 
 local ch = new_output()
 ch:line():append("hi"):append("world")
+ch.scope.test = "ttt"
+ch:line():append(ch.scope.test)
 
 local line2 = ch:push_prior():append("pre")
 
 ch:push_next()
-ch:line():append("lovely day")
+ch.scope:push()
+ch.scope.test = " innit"
+ch:line():append("lovely day" .. ch.scope.test)
 ch:pop()
+ch.scope:pop()
 ch:line():append("pre2")
 
 ch:push_header():append("header 1")
-ch:line():append("boop"):pop()
+ch:line():append("boop " .. ch.scope.test):pop()
 ch:push_footer():append("footer 1"):pop()
 ch:push_header():append("header 2"):pop()
 ch:push_footer():append("footer 2"):pop()
