@@ -43,7 +43,7 @@ local function generate_pattern(str, grammar)
           subrule.type = "match_keyw"
           subrule.value = v
 
-        elseif string.sub(v,1,1) == "'" and string.sub(v,-1,-1) == "'" then
+        elseif (string.sub(v,1,1) == "'" and string.sub(v,-1,-1) == "'") or (string.sub(v,1,1) == '"' and string.sub(v,-1,-1) == '"') then
             subrule.type = "match_syms"
             subrule.value = string.sub(v,2,-2)
 
