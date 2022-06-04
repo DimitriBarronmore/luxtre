@@ -115,6 +115,7 @@ end
 ---@field _stack table
 ---@field _array table
 ---@field scope table
+---@field data table
 local output = {}
 output.__index = output
 
@@ -218,6 +219,7 @@ local function new_output()
 
     out._stack = {}
     out._array = {}
+    out.data = {}
     setmetatable(out, output)
 
     out.scope = new_scope(out)
