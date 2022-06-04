@@ -488,10 +488,10 @@ local function extract_rule_components(revarray, item)
         if edge.result == check_rule.value and not discovered[edge.ends_at] then
           local new_node = edge.ends_at
           if new_node == end_node and current_node[2] == #prule then
-            local info = {type = "item", value = edge}
+            local info = {type = "item", value = edge, rule = check_rule.value}
             return grab_children({new_node, current_node[2] + 1, current_node, info})
           elseif current_node[2] + 1 <= #prule then
-            local info = {type = "item", value = edge}
+            local info = {type = "item", value = edge, rule = check_rule.value}
             stack:push({new_node, current_node[2] + 1, current_node, info})
           end
         end
@@ -508,11 +508,11 @@ local function extract_rule_components(revarray, item)
         end
         if new_node == end_node and current_node[2] == #prule then
           local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
-                         position = checktoken.position}
+                         position = checktoken.position, rule = checktoken.type}
           return grab_children({new_node, current_node[2] + 1, current_node, info})
         elseif current_node[2] + 1 <= #prule then
           local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
-                         position = checktoken.position}
+                         position = checktoken.position, rule = checktoken.type}
           stack:push({new_node, current_node[2] + 1, current_node, info} )
         end
       end
