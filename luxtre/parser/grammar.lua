@@ -117,7 +117,11 @@ function grammar_core:addRule(name, rule, post)
   -- else
   --   final.post = generic_post
   -- end
-  if not post then final.post = generic_post end
+  if post then
+    final.post = post
+  else
+     final.post = generic_post
+  end
   final.pattern = rule
   final._result = name
   table.insert(self._list[name], final)
