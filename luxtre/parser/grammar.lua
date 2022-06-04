@@ -35,6 +35,7 @@ local function generate_pattern(str, grammar)
         or v == 'String'
         or v == 'Symbol'
         or v == 'Keyword'
+        or v == 'Operator'
         then
             subrule.type = "match_type"
             subrule.value = v

@@ -414,16 +414,18 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
             check_symbol = true
         end
         if check_symbol then
+            local stype = "Symbol"
             local value = next_char
             local advance_to = 1
             for _,oper in ipairs(grammar._operators) do
                 if inpstr:peekTo(oper:len()) == oper then
                     value = oper
+                    stype = "Operator"
                     advance_to = oper:len()
                     break
                 end
             end
-            self:insertToken("Symbol", value, position, table.concat(_before))
+            self:insertToken(stype, value, position, table.concat(_before))
             _before = {}
             inpstr:advance(advance_to)
         end
