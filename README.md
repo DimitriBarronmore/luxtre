@@ -7,7 +7,7 @@ Luxtre is compatible with Lua JIT, Lua 5.1, Lua 5.2, Lua 5.3, and Lua 5.4, but d
 **Current Status:** 
 Luxtre executes and outputs files properly, but is not yet complete. Future versions will have further syntax changes/additions and the ability to add new ones, as well as better error location redirection and better formatted output.
 
-[**How to Use:**](docs/README.md)
+[**See the Documentation**](docs)
 
 # Command-line Use
 Lux currently offers an extremely basic method for running files directly from a commandline in linux. Add the `bin` folder to your path, and call `lux <filename>` to run a .lux file. 
