@@ -63,7 +63,7 @@ alter function signature; sneak in extra info
 ]]
 
 ---@class outp_line
----@field _chunk lux_output
+---@field __chunk lux_output
 local line = {}
 line.__index = line
 
@@ -73,34 +73,58 @@ function line:append(text)
 end
 
 function line:pop()
-    self._chunk:pop()
-    -- table.remove(self._chunk.stack)
+    self.__chunk:pop()
+    -- table.remove(self.__chunk.stack)
 end
 
+--[[
+	This function comes directly from a stackoverflow answer by islet8.
+	https://stackoverflow.com/a/16077650
+--]]
+local deepcopy
+function deepcopy(o, seen)
+    seen = seen or {}
+    if o == nil then return nil end
+    if seen[o] then return seen[o] end
+  
+    local no = {}
+    seen[o] = no
+    setmetatable(no, deepcopy(getmetatable(o), seen))
+  
+    for k, v in next, o, nil do
+      k = (type(k) == 'table') and deepcopy(k, seen) or k
+      v = (type(v) == 'table') and deepcopy(v, seen) or v
+      no[k] = v
+    end
+    return no
+  end
+
 ---@class lux_output_scope
----@field _chunk lux_output
+---@field __chunk lux_output
+---@field __parent outp_line
 local scope = {}
--- scope.__index = scope
+scope.__index = scope
 local new_scope
 
-local function scope_push(self)
-    local ch = self._chunk
+function scope:push()
+    local ch = self.__chunk
     local newscope = new_scope(ch, self)
+    newscope.__parent = self
     ch.scope = newscope
 end
 
-local function scope_pop(self)
-    local ch = self._chunk
-    ch.scope = self.__index
+function scope:pop()
+    local ch = self.__chunk
+    ch.scope = self.__parent
 end
 
 function new_scope(output, prev)
-    local t = {}
-    t.__index = prev
-    t.push = scope_push
-    t.pop = scope_pop
-    t._chunk = output
-    return setmetatable(t,t)
+    if not prev then
+        prev = setmetatable({}, scope)
+    end
+    local tab = deepcopy(prev)
+    tab.__chunk = output
+    return tab
 end
 
 
