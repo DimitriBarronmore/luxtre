@@ -39,7 +39,7 @@ local ops = {
     "%}"
 }
 local rules = {
-    {"start", "block", function(self, out)
+    {"START", "block", function(self, out)
         local ln = out:push_header()
         ln:append("return function( output_grammar )")
         ln:append([[
@@ -297,7 +297,7 @@ test -> {String} {% for i,v in ipairs(self.children[1]:print()) do print(i,v) en
 local inpstream = tokenate.inputstream_from_text(txt)
 local tokstream = tokenate.new_tokenstream()
 tokstream:tokenate_stream(inpstream, grammar)
-local pars = parse.earley_parse(grammar, tokstream, "test")
+local pars = parse.earley_parse(grammar, tokstream, "START")
 local ast = parse.extract_parsetree(pars)
 local out = new_output()
 ast.tree:print(out)
