@@ -120,7 +120,7 @@ local output = {}
 output.__index = output
 
 ---@return outp_line
-function output:new_line()
+function output:_new_line()
     local ln = {}
     ln._chunk = self
     return setmetatable(ln, line)
@@ -133,7 +133,7 @@ function output:push_prior()
             index = i
         end
     end
-    local line = self:new_line()
+    local line = self:_new_line()
     self:_push(line, index)
     -- table.insert(self._array, index, line)
     return line
@@ -146,28 +146,28 @@ function output:push_next()
             index = i + 1
         end
     end
-    local line = self:new_line()
+    local line = self:_new_line()
     self:_push(line, index)
     -- table.insert(self._array, index, line)
     return line
 end
 
 function output:push_header()
-    local line = self:new_line()
+    local line = self:_new_line()
     table.insert(self._header, line)
     table.insert(self._stack, line)
     return line
 end
 
 function output:push_footer()
-    local line = self:new_line()
+    local line = self:_new_line()
     table.insert(self._footer, line)
     table.insert(self._stack, line)
     return line
 end
 
 function output:_push(line, index)
-    line = line or self:new_line()
+    line = line or self:_new_line()
     index = index or #self._array + 1
     table.insert(self._array, index, line)
     table.insert(self._stack, line)
@@ -177,6 +177,7 @@ end
 
 function output:pop()
     table.remove(self._stack)
+    return self._stack[#self._stack]
 end
 
 function output:line()
