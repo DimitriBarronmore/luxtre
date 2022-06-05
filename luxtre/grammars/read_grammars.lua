@@ -50,7 +50,7 @@ local __repeatable_post_base = function(self, out)
 end
 local __repeatable_post_gather = function(self, out)
     local tab = self.children[1]:print(out)
-    table.insert(tab, self.children[2].children[1].value)
+    table.insert(tab, self.children[2].children[1])
     return tab
 end
         ]])
@@ -115,7 +115,11 @@ end
         local rule_list = self.children[3]:print(out)
         for _,v in ipairs(rule_list) do
             local ln = out:push_prior()
-            ln:append( ("output_grammar:addRule(\"%s\", [=[%s]=]"):format(name, v) )
+            if v == [[""]] or v == [['']] then
+                ln:append( ('output_grammar:addRule("%s", ""'):format(name) )
+            else
+                ln:append( ('output_grammar:addRule("%s", [=[%s]=]'):format(name, v) )
+            end
             if out._tmp_caught_functext then
                 ln:append((", %s_post"):format(name))
             end
@@ -166,7 +170,11 @@ end
             out.data.__used_ebnf[name] = true
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
-                ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                if v == [[""]] or v == [['']] then
+                    ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+                else
+                    ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                end
                 out:pop()
             end
         end
@@ -181,7 +189,11 @@ end
             out.data.__used_ebnf[name] = true
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
-                ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                if v == [[""]] or v == [['']] then
+                    ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+                else
+                    ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                end
                 out:pop()
             end
             local ln = out:push_prior()
@@ -192,14 +204,18 @@ end
     end},
 
     {"rule_item", "'{' rule_list '}'", function(self, out)
-        local tab = self.children[2]:print()
+        local tab = self.children[2]:print(out)
         local name = ("{" .. table.concat(tab, "|") .. "}"):gsub(" ", "_")
         if not out.data.__used_ebnf then out.data.__used_ebnf = {} end
         if not out.data.__used_ebnf[name] then
             out.data.__used_ebnf[name] = true
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
-                ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                if v == [[""]] or v == [['']] then
+                    ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+                else
+                    ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                end
                 out:pop()
             end
             local ln = out:push_prior()
