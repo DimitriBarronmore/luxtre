@@ -31,7 +31,8 @@ local module = {}
 local keys = {
     "keywords",
     "operators",
-    "reset"
+    "reset",
+    "remove"
 }
 local ops = {
     "->",
@@ -64,7 +65,6 @@ end
     end},
 
     {"reserve_kws", "'@' keywords '{' reserve_list '}'", function(self, out)
-        out.data.has_keys = true
         local ln = out:push_header()
         ln:append("local __keys = {")
         self.children[4]:print(out)
@@ -72,13 +72,42 @@ end
         ln:append("\noutput_grammar:addKeywords(__keys)")
         out:pop()
     end},
+
+    {"reserve_kws", "'@' keywords remove '{' reserve_list '}'", function(self, out)
+        local ln = out:push_header()
+        ln:append("local __keys = {")
+        self.children[5]:print(out)
+        ln:append("\n}")
+        ln:append("\nfor k,v in ipairs(__keys) do\n\toutput_grammar._keywords[v] = nil\nend ")
+        out:pop()
+    end},
+
     {"reserve_ops", "'@' operators '{' reserve_list '}'", function(self, out)
-        out.data.has_ops = true
         local ln = out:push_header()
         ln:append("local __ops = {")
         self.children[4]:print(out)
         ln:append("\n}")
         ln:append("\noutput_grammar:addOperators(__ops)")
+        out:pop()
+    end},
+
+    {"reserve_ops", "'@' operators remove '{' reserve_list '}'", function(self, out)
+        local ln = out:push_header()
+        ln:append("local __ops = {")
+        self.children[5]:print(out)
+        ln:append("\n}")
+        ln:append([[
+
+local operators = output_grammar._operators
+for _,v in ipairs(__ops) do
+    for i = #operators, 1, -1 do
+        local op = operators[i]
+        if op == v then
+            table.remove(operators, i)
+        end
+    end
+end
+]])
         out:pop()
     end},
 

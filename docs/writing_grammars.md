@@ -38,6 +38,11 @@ For example, for the base Lua grammar this looks something like:
 
 @operators { "==", "<=", ">=", "~=", "...", [...] }
 ```
+If the keyword `remove` is inserted before the list, the given items will be removed from the grammar.
+```
+@keywords remove {"list", "of", "strings"}
+```
+
 ### Grammar Rules
 Production rules can be added to the grammar with a rule definition statement:
 ```
@@ -63,7 +68,7 @@ optional -> start [optional sequence] ending
 repeating -> start {repeated sequence} ending
 ```
 
-If you wish to remove a non-terminal entirely and start over, such as to replace one from a prior grammar, you can use a `@reset` statement. This will remove all productions of that rule from the grammar before the contents of the grammar run.
+If you wish to remove a non-terminal entirely and start over, such as to replace one from a prior grammar, you can use a `@reset` statement. This will remove all productions of that rule from the grammar before the contents of the current file run.
 ```
 @reset rule_name
 ```
