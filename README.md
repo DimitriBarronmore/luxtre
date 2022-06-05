@@ -7,6 +7,8 @@ Luxtre is compatible with Lua JIT, Lua 5.1, Lua 5.2, Lua 5.3, and Lua 5.4, but d
 **Current Status:** 
 Luxtre executes and outputs files properly, but is not yet complete. Future versions will have further syntax changes/additions and the ability to add new ones, as well as better error location redirection and better formatted output.
 
+> WARNING: Features you see here are entirely subject to change. Luxtre is still a work in progress, and forward-compatibility is not yet guaranteed.
+
 [**See the Documentation**](docs)
 
 # Command-line Use
