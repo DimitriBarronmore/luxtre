@@ -488,10 +488,10 @@ local function extract_rule_components(revarray, item)
         if edge.result == check_rule.value and not discovered[edge.ends_at] then
           local new_node = edge.ends_at
           if new_node == end_node and current_node[2] == #prule then
-            local info = {type = "item", value = edge, rule = check_rule.value}
+            local info = {type = "non-terminal", value = edge, rule = check_rule.value}
             return grab_children({new_node, current_node[2] + 1, current_node, info})
           elseif current_node[2] + 1 <= #prule then
-            local info = {type = "item", value = edge, rule = check_rule.value}
+            local info = {type = "non-terminal", value = edge, rule = check_rule.value}
             stack:push({new_node, current_node[2] + 1, current_node, info})
           end
         end
@@ -507,11 +507,11 @@ local function extract_rule_components(revarray, item)
           checktoken = {value = "", _before = ""}
         end
         if new_node == end_node and current_node[2] == #prule then
-          local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
+          local info = {type = "terminal", value = checktoken.value, _before = checktoken._before,
                          position = checktoken.position, rule = checktoken.type}
           return grab_children({new_node, current_node[2] + 1, current_node, info})
         elseif current_node[2] + 1 <= #prule then
-          local info = {type = "scan", value = checktoken.value, _before = checktoken._before,
+          local info = {type = "terminal", value = checktoken.value, _before = checktoken._before,
                          position = checktoken.position, rule = checktoken.type}
           stack:push({new_node, current_node[2] + 1, current_node, info} )
         end
@@ -529,7 +529,7 @@ print_items = function(branch, indent)
   indent = indent or 0
   local indentstr = (" "):rep(indent)
   for i,v in ipairs(branch.children) do
-    if v.type == "item" then
+    if v.type == "non-terminal" then
       print(indentstr .. v.value:_debug())
       print_items(v, indent + 4)
     else
@@ -548,7 +548,7 @@ recurse_tree = function(revarray, start)
   start.print = start.value.production_rule.post
   start.children = extract_rule_components(revarray, rule)
   for _, child in ipairs(start.children) do
-    if child.type == "item" then
+    if child.type == "non-terminal" then
       recurse_tree(revarray, child)
     else
       child.print = generic_print
@@ -572,7 +572,7 @@ function export.extract_parsetree(array)
   }
   tree._debug = function() print_items(tree.tree) end
   ---@type lux_ast_item
-  local root_item = { type = "item",
+  local root_item = { type = "non-terminal",
                       value = search_rule, }
 
   tree.tree = root_item
