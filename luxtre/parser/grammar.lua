@@ -79,6 +79,7 @@ grammar:
 ---@field _operators table
 ---@field _list table
 ---@field _nullable table
+---@field _used table
 local grammar_core = {}
 grammar_core.__index = grammar_core
 
@@ -106,6 +107,12 @@ function grammar_core:addRule(name, rule, post)
   -- if type(post) ~= "function" and post ~= nil then
   --   error("invalid argument: expected nil or function, got " .. type(post))
   -- end
+  local hash = name .. ">>" .. rule
+  if self._used[hash] then
+    return
+  else
+    self._used[hash] = true
+  end
   if not self._list[name] then
     self._list[name] = {}
   end
@@ -265,6 +272,7 @@ local function newGrammar()
   output._operators = {}
   output._list = {}
   output._nullable = {}
+  output._used = {}
 
   return output
 end
