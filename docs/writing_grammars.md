@@ -81,7 +81,7 @@ rule_name -> pattern {* print behavior *}
 ```
 
 Print functions are the way text is output to the final file. 
-All grammars are required to have a single root production rule named `START.`
+All grammars are required to have a root production rule named `START.`
 Luxtre does not post-process items at the time of discovery; rather, after the AST is assembled the `START` rule's `:print(out)` function is called and execution trickles down towards the leaves.
 
 If a print function is not explictly declared, a default is used which simply calls `:print` on each of the current item's child branches/leaves.
