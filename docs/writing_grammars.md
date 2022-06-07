@@ -67,6 +67,7 @@ grouping -> start (option 1 | option 2) ending
 optional -> start [optional sequence] ending
 repeating -> start {repeated sequence} ending
 ```
+> Note: Repeating groups have special behavior in order to make them more useful. Calling `:print(out, true)` on a repeating sequence will set it to gather mode. In gather mode nothing is printed to the output, and the function instead returns an ordered table of every rule captured by the group.
 
 If you wish to remove a non-terminal entirely and start over, such as to replace one from a prior grammar, you can use a `@reset` statement. This will remove all productions of that rule from the grammar before the contents of the current file run.
 ```
@@ -85,9 +86,7 @@ Luxtre does not post-process items at the time of discovery; rather, after the A
 
 If a print function is not explictly declared, a default is used which simply calls `:print` on each of the current item's child branches/leaves.
 
-Note that print functions do not need to actually output text; with careful management it is possible to perform the equivalent of semantic actions by resolving a production rule into an intermediate data structure. 
-
-> Repeating sequence patterns make use of this. When `:print(out)` is called on a repeating sequence it returns an array of the matched rules. If you plan to use them, be sure to handle the output properly.
+> Note that print functions do not need to actually output text; with careful management it is possible to perform the equivalent of semantic actions by resolving a production rule into an intermediate data structure. Be careful with this, as not making this behavior optional will interrupt the default echo-to-output print behavior and may make the rule harder to use.
 
 ## Node Objects
 Print functions have access to two variables: `self`, the current discovered node in the AST, and `out`, the current output stream (see "The Output Object" below). Each node has a simply defined structure which gives the user enough information to transform the final text output.
@@ -178,10 +177,15 @@ START -> block {%
 local __repeatable_post_base = function(self, out)
     return { }
 end
-local __repeatable_post_gather = function(self, out)
-    local tab = self.children[1]:print(out)
+local __repeatable_post_gather = function(self, out, gather)
+    local tab = self.children[1]:print(out, true)
     table.insert(tab, self.children[2].children[1])
-    return tab
+    if gather then
+        return tab
+    end
+    for _, child in ipairs(tab) do
+        child:print(out)
+    end
 end
     ]])
     out:pop()

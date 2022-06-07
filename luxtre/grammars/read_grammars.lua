@@ -50,10 +50,15 @@ local rules = {
 local __repeatable_post_base = function(self, out)
     return { }
 end
-local __repeatable_post_gather = function(self, out)
-    local tab = self.children[1]:print(out)
+local __repeatable_post_gather = function(self, out, gather)
+    local tab = self.children[1]:print(out, true)
     table.insert(tab, self.children[2].children[1])
-    return tab
+    if gather then
+        return tab
+    end
+    for _, child in ipairs(tab) do
+        child:print(out)
+    end
 end
         ]])
         out:pop()
