@@ -3,6 +3,7 @@ local path = (...):gsub("grammars[./\\]read_grammars", "")
 local newGrammar = require(path .. "parser.grammar")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
+local ast = require(path .. "parser.ast")
 local new_output = require(path .. "parser.output")
 local load_func = require(path .. "utils.safeload")
 
