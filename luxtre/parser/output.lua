@@ -1,30 +1,3 @@
---[[
-    - **scoped data**
-    - get/manipulate scope on top
-	- add scope to stack
-	- pop scope from stack
-
-alter function signature; sneak in extra info
-	token:print( out, line = out.line)
-	children are in array part of self
-	access to vars:
-		out - the relevant output class
-
-**output class:**
-	:do_once() - do the specified thing only the first time the token matches
-	.scope - the current topmost scope 
-		:push() - add new layer to stack
-		:pop() - remove top layer from stack
-	.line - the current line object (note: may span multiple lines of real output)
-		:add_before() - add and return a line before the one being edited
-		:add_after() - add and return a line after the one being edited
-		:add_top() - add and return a line at the top of the file
-		:add_bottom() - add and return a line at the bottom of the file
-        :newline() - replace the current working line
-		:write(str: text) - add text to the line object
-		:write(leaf_obj) - run the leaf's print in given line
-		- all functions return object for chaining
---]]
 
 --[[
         CONCEPT: SECOND DRAFT
@@ -62,6 +35,9 @@ alter function signature; sneak in extra info
       responsible for assigning the source line number.
 ]]
 
+local path = (...):gsub("parser[./\\]output", "")
+local deepcopy = require(path .. "utils/deepcopy")
+
 ---@class outp_line
 ---@field __chunk lux_output
 local line = {}
@@ -76,28 +52,6 @@ function line:pop()
     self.__chunk:pop()
     -- table.remove(self.__chunk.stack)
 end
-
---[[
-	This function comes directly from a stackoverflow answer by islet8.
-	https://stackoverflow.com/a/16077650
---]]
-local deepcopy
-function deepcopy(o, seen)
-    seen = seen or {}
-    if o == nil then return nil end
-    if seen[o] then return seen[o] end
-  
-    local no = {}
-    seen[o] = no
-    setmetatable(no, deepcopy(getmetatable(o), seen))
-  
-    for k, v in next, o, nil do
-      k = (type(k) == 'table') and deepcopy(k, seen) or k
-      v = (type(v) == 'table') and deepcopy(v, seen) or v
-      no[k] = v
-    end
-    return no
-  end
 
 ---@class lux_output_scope
 ---@field __chunk lux_output
@@ -251,30 +205,5 @@ local function new_output()
     out:_push()
     return out
 end
-
--- local ch = new_output()
--- ch:line():append("hi"):append("world")
--- ch.scope.test = "ttt"
--- ch:line():append(ch.scope.test)
-
--- local line2 = ch:push_prior():append("pre")
-
--- ch:push_next()
--- ch.scope:push()
--- ch.scope.test = " innit"
--- ch:line():append("lovely day" .. ch.scope.test)
--- ch:pop()
--- ch.scope:pop()
--- ch:line():append("pre2")
-
--- ch:push_header():append("header 1")
--- ch:line():append("boop " .. ch.scope.test):pop()
--- ch:push_footer():append("footer 1"):pop()
--- ch:push_header():append("header 2"):pop()
--- ch:push_footer():append("footer 2"):pop()
-
-
--- print(ch:print())
-
 
 return new_output
