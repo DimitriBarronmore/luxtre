@@ -15,302 +15,56 @@ local path = (...):gsub("loader", "")
 local newGrammar = require(path .. "parser.grammar")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
+local ast = require(path .. "parser.ast")
 local new_output = require(path .. "parser.output")
+
 local load_func = require(path .. "utils.safeload")
+local deepcopy = require(path .. "utils.deepcopy")
+
+local std_grammar = require(path .. "grammars.std")
+
 
 local module = {}
 
-local keys = {
-    "break",
-    "goto",
-    "do",
-    "end",
-    "while",
-    "repeat",
-    "until",
-    "in",
-    "if",
-    "then",
-    "elseif",
-    "else",
-    "for",
-    "function",
-    "local",
-    "return",
-    "nil",
-    "false",
-    "true",
-    "and",
-    "or",
-    "not"
-  }
-local ops = {
-    '==',
-    '<=',
-    '>=',
-    '~=',
-    '::',
-    '...',
-    '..',
-    '->',
-    '=>',
-    '+=',
-    '-=',
-    '/=',
-    '*=',
-    '%=',
-    '^=',
-    '++',
-  }
 
-  local rules = {
+-- [ file loading ] --
 
-    {"chunk", "block <eof>"},
+local function create_grammar(apply_grammars)
+    local grammar = newGrammar()
+    -- if not apply_grammars[1] then
+    --     apply_grammars[1] = std_grammar
+    -- end
+    for _, gfunc in ipairs(apply_grammars) do
+        gfunc(grammar)
+    end
 
-    --blocks
-
-    {"block", "block_2 block_3"},
-    {"block_2", "block_2 stat"},
-    {"block_2", ""},
-    {"block_3", "return_stat"},
-    {"block_3", ""},
-
-    -- statements
-
-    {"stat", "';'"},
-    {"stat", "var_list '=' exp_list"},
-    {"stat", "functioncall"},
-    {"stat", "label"},
-    {"stat", "break"},
-    {"stat", "goto Name"},
-    {"stat", "do block end"},
-    {"stat", "while exp do block end"},
-    {"stat", "repeat block until exp"},
-
-    {"stat", "if exp then block elseif_block else_block end"},
-    {"elseif_block", "elseif exp then block elseif_block" },
-    {"elseif_block", ""},
-    {"else_block", "else block" },
-    {"else_block", ""},
-
-    {"stat","for Name '=' exp ',' exp forstat_2 do block end"},
-    {"forstat_2","',' exp"},
-    {"forstat_2",""},
-
-    {"stat","for name_list in exp_list do block end"},
-    {"stat","function funcname funcbody"},
-    {"stat","local function Name funcbody"},
-    {"stat","local name_list assignstat_2"},
-    {"assignstat_2","'=' exp_list"},
-    {"assignstat_2",""},
-
-    {"return_stat", "'return' return_stat_2 return_stat_3"},
-    {"return_stat_2", "exp_list"},
-    {"return_stat_2", ""},
-    {"return_stat_3", "';'"},
-    {"return_stat_3", ""},
-
-    --assorted
-
-    {"label", "'::' Name '::'"},
-
-    {"funcname", "Name funcname_2 funcname_3"},
-    {"funcname_2", "'.' Name funcname_2"},
-    {"funcname_2", ""},
-    {"funcname_3", "':' Name"},
-    {"funcname_3", ""},
-
-    {"var_list", "var var_list_2"},
-    {"var_list_2", "',' var var_list_2"},
-    {"var_list_2", ""},
-
-    {"var", "Name"},
-    {"var", "prefixexp '[' exp ']'"},
-    {"var", "prefixexp '.' Name"},
+    return grammar
+end
 
 
-    -- {"var", "tableconstructor", [["(" .. $1 .. ")"]] },
-    -- {"var", "String", [["(" .. $1 .. ")"]] },
-
-    {"name_list", "Name name_list_2"},
-    {"name_list_2", "',' Name name_list_2"},
-    {"name_list_2", ""},
-
-    {"exp_list", "exp exp_list_2"},
-    {"exp_list_2", "',' exp exp_list_2"},
-    {"exp_list_2", ""},
-
-    --expressions
-
-    {"exp", "nil"},
-    {"exp", "false"},
-    {"exp", "true"},
-    {"exp", "Number"},
-    {"exp", "String"},
-    {"exp", "'...'"},
-    {"exp", "functiondef"},
-    {"exp", "prefixexp"},
-    {"exp", "tableconstructor"},
-    {"exp", "exp binop exp"},
-    {"exp", "unop exp"},
-    -- {"exp", "unop exp", [[$1 .. $2]]},
-
-    -- augmented assignment
-
-    -- {"stat", "exp '+=' exp", [[$1 .. " = " .. $1 .. " + (" .. $3 .. ")"]]},
-    -- {"stat", "exp '-=' exp", [[$1 .. " = " .. $1 .. " - (" .. $3 .. ")"]]},
-    -- {"stat", "exp '*=' exp", [[$1 .. " = " .. $1 .. " * (" .. $3 .. ")"]]},
-    -- {"stat", "exp '/=' exp", [[$1 .. " = " .. $1 .. " / (" .. $3 .. ")"]]},
-    -- {"stat", "exp '%=' exp", [[$1 .. " = " .. $1 .. " % (" .. $3 .. ")"]]},
-    -- {"stat", "exp '^=' exp", [[$1 .. " = " .. $1 .. " ^ (" .. $3 .. ")"]]},
-    -- {"stat", "var '++'", [[$1 .. " = " .. $1 .. " + 1"]]},
-
-    --functions
-
-    {"prefixexp", "var"},
-    {"prefixexp", "functioncall"},
-    {"prefixexp", "'(' exp ')'"},
-
-    {"functioncall", "prefixexp ':' Name args"},
-    {"functioncall", "prefixexp args"},
-
-    {"args", "'(' exp_list ')'"},
-    {"args", "'(' ')'"},
-    {"args", "tableconstructor"},
-    {"args", "String"},
-
-    {"functiondef", "function funcbody"},
-
-    {"funcbody", "'(' paramlist ')' block end"},
-    {"funcbody", "'(' ')' block end"},
-
-    {"paramlist", "name_list"},
-    {"paramlist", "name_list ',' '...'"},
-    {"paramlist", "'...'"},
-
-    -- arrow functions
-
-    -- {"exp", "arrowdef"},
-    -- {"exp", "fatarrowdef"},
-
-    -- {"lambdstat", "stat"},
-    -- {"lambdstat", "return_stat"},
-    -- {"lambdstat", "exp", [["return " .. $1]]},
-
-    -- {"stat","var arrowdef", [[$1 .. " = " .. $2]]},
-    -- {"stat","local Name arrowdef", [["local " .. $2 .. " = " .. $3]]},
-    -- {"stat","var fatarrowdef", [[$1 .. " = " .. $2]]},
-    -- {"stat","local Name fatarrowdef", [["local " .. $2 .. " = " .. $3]]},
-    
-
-    -- {"arrowdef", "args '->' lambdstat", [["function" .. $1 .. " " .. $3 .. " end"]]},
-    -- {"arrowdef", "'->' lambdstat", [["function() ".. $2 .. " end"]]},
-
-    -- {"shorthandargs", "'(' exp_list ')'", [[$2]] },
-    -- {"emptyargs", "'(' ')'", "" },
-    -- {"fatarrowdef", "shorthandargs '=>' lambdstat", [["function(self," .. $1 .. ") " .. $3 .. " end"]]},
-    -- {"fatarrowdef", "emptyargs '=>' lambdstat", [["function(self) " .. $3 .. " end"]]},
-    -- {"fatarrowdef", "'=>' lambdstat", [["function(self) ".. $2 .. " end"]]},
-
-    --function decorators
-    -- {"funcdecorator", "'@' funcname"},
-
-    -- {"decoratedfunc", "'@' funcname function funcname funcbody",
-    --     [[$4 .. " = " .. $2 .. "(function" .. $5 .. ")"]]},
-
-    -- {"decoratedfunc", "'@' funcname local function funcname funcbody",
-    --     [["local " .. $5 .. " = " .. $2 .. "(function" .. $6 .. ")"]]},
-
-    -- {"decoratedfunc", "'@' funcname var arrowdef",
-    --   [[$3 .. " = " .. $2 .. "( " .. $4 .. " )" ]]},
-
-    -- {"decoratedfunc", "'@' funcname local Name arrowdef",
-    --   [["local " .. $4 .. " = " .. $2 .. "( " .. $5 .. " )" ]]},
-
-    -- {"decoratedfunc", "'@' funcname var fatarrowdef",
-    --   [[$3 .. " = " .. $2 .. "( " .. $4 .. " )" ]]},
-
-    -- {"decoratedfunc", "'@' funcname local Name fatarrowdef",
-    --   [["local " .. $4 .. " = " .. $2 .. "( " .. $5 .. " )" ]]},
-
-
-    -- {"stat", "decoratedfunc"},
-
-    -- {"stat","function funcname funcbody"},
-    --   {"stat","local function Name funcbody"},
-
-    --tables
-
-    {"tableconstructor", "'{' fieldlist '}'"},
-   
-    {"fieldlist", "field fieldlist_2 fieldlist_3"},
-    {"fieldlist", ""},
-    {"fieldlist_2", "fieldsep field fieldlist_2"},
-    {"fieldlist_2", ""},
-    {"fieldlist_3", "fieldsep"},
-    {"fieldlist_3", ""},
-
-    {"field", "'[' exp ']' fieldass exp"},
-    {"field", "Name fieldass exp"},
-    {"field", "exp"},
-    
-    {"fieldass", "'='"},
-    -- {"fieldass", "':'", [[" ="]]},
-
-    {"fieldsep", "','"},
-    {"fieldsep", "';'"},
-
-    --basics
-
-    {"binop", "'+'"},
-    {"binop", "'-'"},
-    {"binop", "'*'"},
-    {"binop", "'/'"},
-    {"binop", "'^'"},
-    {"binop", "'%'"},
-    {"binop", "'..'"},
-    {"binop", "'<'"},
-    {"binop", "'<='"},
-    {"binop", "'>'"},
-    {"binop", "'>='"},
-    {"binop", "'=='"},
-    {"binop", "'~='"},
-    {"binop", "'and'"},
-    {"binop", "'or'"},
-
-    {"unop", "'-'"},
-    {"unop", "not"},
-    {"unop", "'#'"}
-}
-
-local grammar = newGrammar()
-grammar:addKeywords(keys)
-grammar:addOperators(ops)
-grammar:addRules(rules)
-grammar :_generate_nullable()
-
-local function generic_load(inputstream)
+local function generic_compile(inputstream, grammars)
+    local grammar = create_grammar(grammars)
     local tokenstream = tokenate.new_tokenstream()
     tokenstream:tokenate_stream(inputstream, grammar)
+
     local status, res = pcall(parse.earley_parse, grammar, tokenstream, "chunk")
     if status == false then
         local msg_start = string.find(res, "%d:", 1)
-        error(string.sub(res, msg_start + 3), 3)
+        error(string.sub(res, (msg_start or 0)  + 3), 3)
     end
-    local ast = parse.extract_parsetree(res)
+
+    local f_ast = ast.earley_extract(res)
     local output = new_output()
-    ast.tree:print(output)
-    -- print(output:print())
+    f_ast.tree:print(output)
     return output:print()
-    -- return ast.tree:print()
 end
 
-local function wrap_errors(output, outputchunk)
+local function wrap_errors(output, outputchunk) -- change later
     local check_err = function(...)
         local status = { pcall(outputchunk, ...) }
         if status[1] == false then
             local err = status[2]
-            print("ERROR")
+            --print("ERROR")
             local _,_,cap = string.find(err, "%]:(%d+):")
             local count = 0
             local realline
@@ -330,132 +84,143 @@ local function wrap_errors(output, outputchunk)
     return check_err
 end
 
----@param filename string
----@param env table | nil
----Loads a .lux file by the given name and returns a chunk.
-function module.loadfile(filename, env)
+local function fix_filename(filename, filetype)
     if type(filename) ~= "string" then
-        error("filename must be a string", 2)
+        error("filename must be a string", 3)
     end
-    local filename = filename .. ".lux"
+    filename = filename .. filetype
+    return filename
+end
+
+local function create_inpstream(filename)
     local status,res = pcall(tokenate.inputstream_from_file, filename)
     if status == false then
-        error("file '" .. filename .. "' does not exist", 2)
+        error("file '" .. filename .. "' does not exist", 3)
     end
-    local output = generic_load(res)
-    local outputchunk, err = load_func(output, filename, "t", env)
+    return res
+end
+
+local function load_chunk(compiled_text, filename, env)
+    local chunk, err = load_func(compiled_text, filename, "t", env)
     if err then
         error(err, 0)
     end
-
-    local safe_chunk = wrap_errors(output, outputchunk)
+    local safe_chunk = wrap_errors(compiled_text, chunk)
     return safe_chunk
 end
 
----@param filename string
----@param env table | nil
----Runs a .lux file by the given name.
-function module.dofile(filename, env)
-    local status, res = pcall(module.loadfile, filename, env)
-    if status == false then
-        error(res, 2)
-    end
-    return res()
-end
-
----@param str string
----@param env table | nil
----Loads a string as luxtre coae.
-function module.loadstring(str, env)
-    if type(str) ~= "string" then
-        error("input must be a string", 2)
-    end
-    local tokenstream = tokenate.inputstream_from_text(str)
-    local output = generic_load(tokenstream)
-    local outputchunk, err = load_func(output, str, "t", env)
-    if err then
-        error(err, 0)
-    end
-
-    local safe_chunk = wrap_errors(output, outputchunk)
-    return safe_chunk
-end
-
----@param str string
----@param env table | nil
----Runs a string as luxtre code.
-function module.dostring(str, env)
-    local status, res = pcall(module.loadstring, str, env)
-    if status == false then
-        error(res, 2)
-    end
-    return res()
-end
-
-function module.compile_file(filename)
-    if type(filename) ~= "string" then
-        error("filename must be a string", 2)
-    end
-    local filename_lux = filename .. ".lux"
-
-    local status,res = pcall(tokenate.inputstream_from_file, filename_lux)
-    if status == false then
-        error("file '" .. filename_lux .. "' does not exist", 2)
-    end
-    local text = generic_load(res)
-
-    local file = io.open(filename .. ".lua", "w+")
-    file:write(text)
-    file:flush()
-    file:close()
-end
-
-local function filepath_search(filepath)
+local function filepath_search(filepath, filetype)
     for path in package.path:gmatch("[^;]+") do
-        local fixed_path = path:gsub("%.lua", ".lux"):gsub("%?", (filepath:gsub("%.", "/")))
+        local fixed_path = path:gsub("%.lua", filetype):gsub("%?", (filepath:gsub("%.", "/")))
         local file = io.open(fixed_path)
         if file then file:close() return fixed_path end
     end
 end
 
--- Based partially on code from Candran
--- Thanks for having an implementation to reference
--- https://github.com/Reuh/candran
 
-local function luxtre_searcher(modulepath)
-    local filepath = filepath_search(modulepath)
-    if filepath then
-        return function (filepath)
-            local status, res = pcall(module.loadfile, filepath)
-            if status == true then
-                return res(modulepath)
-            else
-                error("error loading luxtre module '" .. modulepath .. "'\n" .. res, 3)
+-- Take a list of grammars and make a set of load funcs for them
+local function create_loaders(filetype, grammars)
+    filetype = filetype or ".lux"
+    grammars = grammars or {std_grammar}
+    local loaders = {}
+
+    loaders.loadfile = function(filename, env)
+        filename = fix_filename(filename, filetype)
+        local inputstream = create_inpstream(filename)
+        local compiled_text = generic_compile(inputstream, grammars)
+        local chunk = load_chunk(compiled_text, filename, env)
+        return chunk
+    end
+
+    loaders.dofile = function(filename, env)
+        local status, res = pcall(loaders.loadfile, filename, env)
+        if status == false then
+            error(res, 2)
+        end
+        return res()
+    end
+
+    loaders.loadstring = function (str, env)
+        if type(str) ~= "string" then
+            error("input must be a string", 2)
+        end
+        local inputstream = tokenate.inputstream_from_text(str)
+        local compiled_text = generic_compile(inputstream, grammars)
+        local chunk = load_chunk(compiled_text, str, env)
+        return chunk
+    end
+
+    loaders.dostring = function(str, env)
+        local status, res = pcall(loaders.loadstring, str, env)
+        if status == false then
+            error(res, 2)
+        end
+        return res()
+    end
+
+    loaders.compile_file = function(filename)
+        local adjusted_filename = fix_filename(filename, filetype)
+        local inputstream = create_inpstream(adjusted_filename)
+        local compiled_text = generic_compile(inputstream, grammars)
+
+        local file = io.open(filename .. ".lua", "w+")
+        file:write(compiled_text)
+        file:flush()
+        file:close()
+    end
+
+
+    -- Based partially on code from Candran
+    -- Thanks for having an implementation to reference
+    -- https://github.com/Reuh/candran
+
+    local function luxtre_searcher(modulepath)
+        local filepath = filepath_search(modulepath, filetype)
+        if filepath then
+            return function(filepath)
+                local status, res = pcall(loaders.loadfile, filepath)
+                if status == true then
+                    return res(modulepath)
+                else
+                    error("error loading module '" .. modulepath .. "'\n" .. res, 3)
+                end
+            end
+        else
+            local err = ("no file '%s' in package.path"):format(modulepath .. filetype)
+            if _VERSION < "Lua 5.4" then
+                err = "\n\t" .. err
+            end
+            return err
+        end
+    end
+
+    loaders.register = function()
+        local searchers 
+        if _VERSION == "Lua 5.1" then
+            searchers = package.loaders
+        else
+    ---@diagnostic disable-next-line: deprecated
+            searchers = package.searchers
+        end
+        for _, s in ipairs(searchers) do
+            if s == luxtre_searcher then
+                return
             end
         end
-    else
-        local err = ("no luxtre file '%s' in package.path"):format(modulepath)
-        if _VERSION < "Lua 5.4" then
-            err = "\n\t" .. err
-        end
-        return err
+        table.insert(searchers, 1, luxtre_searcher)
     end
+    
+
+    return loaders
 end
 
-function module.register()
-	local searchers 
-    if _VERSION == "Lua 5.1" then
-		searchers = package.loaders
-	else
----@diagnostic disable-next-line: deprecated
-		searchers = package.searchers
-	end
-    for _, s in ipairs(searchers) do
-        if s == luxtre_searcher then
-            return
-        end
-    end
-    table.insert(searchers, 1, luxtre_searcher)
-end
+local default_loaders = create_loaders()
+
+module.loadfile = default_loaders.loadfile
+module.dofile = default_loaders.dofile
+module.loadstring = default_loaders.loadstring
+module.dostring = default_loaders.dostring
+module.compile_file = default_loaders.compile_file
+module.register = default_loaders.register
 
 return module
