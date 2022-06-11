@@ -44,6 +44,7 @@ local ops = {
   }
 
   local rules = {
+    {"START", "chunk"},
 
     {"chunk", "block <eof>"},
 

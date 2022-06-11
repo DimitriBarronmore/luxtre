@@ -34,7 +34,7 @@ local function generic_compile(inputstream, grammars)
     local tokenstream = tokenate.new_tokenstream()
     tokenstream:tokenate_stream(inputstream, grammar)
 
-    local status, res = pcall(parse.earley_parse, grammar, tokenstream, "chunk")
+    local status, res = pcall(parse.earley_parse, grammar, tokenstream, "START")
     if status == false then
         local msg_start = string.find(res, "%d:", 1)
         error(string.sub(res, (msg_start or 0)  + 3), 3)
