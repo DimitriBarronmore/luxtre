@@ -2,48 +2,9 @@ local path = (...):gsub("parser[./\\]preprocess", "")
 
 local load_func = require(path .. "utils.safeload")
 
-local unpack = unpack
-if _VERSION > "Lua 5.1" then
-    unpack = table.unpack
-end
+local new_sandbox = require(path .. "utils.sandbox")
 
 local export = {}
-
-local function copy(tab)
-    local newtab = {}
-    for key, value in pairs(tab) do
-        if type(value) == "table" then
-            newtab[key] = copy(value)
-        else
-            newtab[key] = value
-        end
-    end
-    return newtab
-end
-  
-  -- A safe sandbox for directives.
-  -- This will be copied anew for each new file being processed.
-  local sandbox_blueprint = {
-      _VERSION = _VERSION,
-      coroutine = copy(coroutine),
-      io = copy(io),
-      math = copy(math),
-      string = copy(string),
-      table = copy(table),
-      assert = assert,
-      error = error,
-      ipairs = ipairs,
-      next = next,
-      pairs = pairs,
-      pcall = pcall,
-      print = print,
-      select = select,
-      tonumber = tonumber,
-      tostring = tostring,
-      type = type,
-      unpack = unpack,
-      xpcall = xpcall
-}
 
 --states:
 -- need_left_parens (look for leftparen)
@@ -272,7 +233,7 @@ local macros_mt = {
 
 local function setup_sandbox(name)
     name = name or ""
-    local sandbox = copy(sandbox_blueprint)
+    local sandbox = new_sandbox()
     sandbox.macros = setmetatable({__listed = {}}, macros_mt)
     sandbox._output = {}
     sandbox._write_lines = {}
