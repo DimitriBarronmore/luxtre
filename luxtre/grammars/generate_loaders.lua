@@ -57,8 +57,7 @@ local function generic_compile(inputstream, grammar)
 
     local status, res = pcall(parse.earley_parse, grammar, tokenstream, "START")
     if status == false then
-        local msg_start = string.find(res, "%d:", 1)
-        error(string.sub(res, (msg_start or 0)  + 3), 3)
+        error(res, 3)
     end
 
     local f_ast = ast.earley_extract(res)
@@ -125,7 +124,7 @@ end
 -- Take a list of grammars and make a set of load funcs for them
 local function create_loaders(filetype, grammars)
     filetype = filetype or ".lux"
-    grammars = grammars or {std_grammar}
+    grammars = grammars or { std_grammar }
     local loaders = {}
 
     loaders.loadfile = function(filename, env)
