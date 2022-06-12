@@ -13,7 +13,8 @@ local new_output = require(path .. "parser.output")
 local load_func = require(path .. "utils.safeload")
 local deepcopy = require(path .. "utils.deepcopy")
 
-local std_grammar = require(path .. "grammars.std")
+-- local std_grammar = require(path .. "grammars.std")
+local std_grammar = load_grammar(path .. "grammars.extended")
 
 
 -- [ file loading ] --

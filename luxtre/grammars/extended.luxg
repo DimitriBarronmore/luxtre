@@ -1,0 +1,63 @@
+@import "$basic_lua"
+
+@operators {
+	'->',
+    '=>',
+    '+=',
+    '-=',
+    '/=',
+    '*=',
+    '%=',
+    '^=',
+--    '++',
+}
+
+variable -> table_constructor | String {%
+	local ln = out:line()
+	ln:append("(")
+	self.children[1]:print(out)
+	ln:append(")")
+%}
+
+statement -> augmented_assignment
+augmented_assignment -> variable_list augmented_op expression_list {%
+	local lhtab = { self.children[1].children[1] }
+	local gathertab = self.children[1].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	
+	local rhtab = { self.children[3].children[1] }
+	local gathertab = self.children[3].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(rhtab, child.children[2])
+	end
+	
+	local op = self.children[2]:print()
+	local ln = out:line()
+	
+	self.children[1]:print(out)
+	ln:append("=")
+	
+	for i, var in ipairs(lhtab) do
+		rhvar = rhtab[i]
+		var:print(out)
+		ln:append(op .. "(")
+		if rhvar then
+			rhvar:print(out)
+		else
+			ln:append("nil")
+		end
+		ln:append(")")
+		if i ~= #lhtab then
+			ln:append(",")
+		end
+	end
+%}
+
+augmented_op -> '+=' {% return "+" %}
+augmented_op -> '-=' {% return "-" %}
+augmented_op -> '/=' {% return "/" %}
+augmented_op -> '*=' {% return "*" %}
+augmented_op -> '%=' {% return "%" %}
+augmented_op -> '^=' {% return "^" %}
