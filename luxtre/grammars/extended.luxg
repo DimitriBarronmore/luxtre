@@ -9,6 +9,8 @@
     '*=',
     '%=',
     '^=',
+	'&=',
+	'|=',
 --    '++',
 	'!=',
 }
@@ -28,6 +30,8 @@ function_call -> (table_constructor | String) ':' Name arguments {%
 		self.children[4]:print(out)
 	%}
 
+
+--[[ Augmented Assignment ]]--
 statement -> augmented_assignment
 augmented_assignment -> variable_list augmented_op expression_list {%
 	local lhtab = { self.children[1].children[1] }
@@ -51,7 +55,7 @@ augmented_assignment -> variable_list augmented_op expression_list {%
 	for i, var in ipairs(lhtab) do
 		rhvar = rhtab[i]
 		var:print(out)
-		ln:append(op .. "(")
+		ln:append(op .. " (")
 		if rhvar then
 			rhvar:print(out)
 		else
@@ -70,3 +74,6 @@ augmented_op -> '/=' {% return "/" %}
 augmented_op -> '*=' {% return "*" %}
 augmented_op -> '%=' {% return "%" %}
 augmented_op -> '^=' {% return "^" %}
+augmented_op -> '&=' {% return "and" %}
+augmented_op -> '|=' {% return "or" %}
+
