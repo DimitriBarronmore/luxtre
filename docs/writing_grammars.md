@@ -69,10 +69,19 @@ repeating -> start {repeated sequence} ending
 ```
 > Note: Repeating groups have special behavior in order to make them more useful. Calling `:print(out, true)` on a repeating sequence will set it to gather mode. In gather mode nothing is printed to the output, and the function instead returns an ordered table of every rule captured by the group.
 
-If you wish to remove a non-terminal entirely and start over, such as to replace one from a prior grammar, you can use a `@reset` statement. This will remove all productions of that rule from the grammar before the contents of the current file run.
+
+## Extending Grammars
+If you want to extend or alter an existing grammar, you can use an `@import` statement. This will apply the given file's grammar rules. You can use as many of these as you want, and they can be nested.
+```
+@import "filepath"
+```
+
+If you wish to remove a non-terminal from an existing grammar entirely and start over, you can use an `@reset` statement. This will remove all productions of that rule from the grammar.
 ```
 @reset rule_name
 ```
+
+Note that the order in which these statements run is important, even though you can write them anywhere in the file.
 
 ## Code Blocks and Rule Printing
 Text within the brackets `{* *}` is captured and used as a code block. On their own, code blocks are written directly into the output. When placed at the end of a rule definition, they become a print function.
@@ -259,6 +268,21 @@ reserve_item -> String
 reset_prod -> '@' reset Name {%
     local ln = out:push_header()
     ln:append("output_grammar._list[\"" .. self.children[3].value .. "\"] = nil")
+    out:pop()
+%}
+
+import_grammar -> '@' import String {%
+    local ln = out:push_header()
+    ln:append(([[
+do
+    local status, res = pcall(__load_grammar, %s)
+    if status == false then
+        error("failed import in " .. __filepath .. "\n\t" .. res, 2)
+    else
+        res(grammar)
+    end
+end
+]]):format(self.children[3].value:gsub("^(['\"])%$", "__rootpath .. %1.")))
     out:pop()
 %}
 

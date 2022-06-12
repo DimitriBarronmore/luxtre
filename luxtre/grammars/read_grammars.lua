@@ -1,39 +1,17 @@
 local path = (...):gsub("grammars[./\\]read_grammars", "")
-
-local newGrammar = require(path .. "parser.grammar")
-local tokenate = require(path .. "parser.tokenate")
-local parse = require(path .. "parser.parse")
-local ast = require(path .. "parser.ast")
-local new_output = require(path .. "parser.output")
-local load_func = require(path .. "utils.safeload")
+local create_loaders = require(path .. "grammars.generate_loaders")
+local new_sandbox = require(path .. "utils.sandbox")
 
 local module = {}
 
---[[ grammar grammar: EBNF
-
-    @reserve {sep, by, commas}
-    -- handles both operators and keywords
-
-    name -> rule | rule | rule {% function text here %}
-    - all sub-rules in the same prod line use the same print-func
-
-    {% loose function text %}
-
-    in a rule:
-        (inner-rules like this)
-        -> pulls inner rule into new pattern; primarily a convenience
-        [optional sets like this]
-        -> pulls into new nullable pattern
-        { repeating sets like this }
-        -> pulls into left-recursive nullable pattern
-
---]]
+-- @import grammar_name
 
 local keys = {
     "keywords",
     "operators",
     "reset",
-    "remove"
+    "remove",
+    "import"
 }
 local ops = {
     "->",
@@ -43,7 +21,7 @@ local ops = {
 local rules = {
     {"START", "block", function(self, out)
         local ln = out:push_header()
-        ln:append("return function( output_grammar )")
+        ln:append("return function( grammar )")
         ln:append([[
 
 
@@ -65,7 +43,7 @@ end
 
         self.children[1]:print(out)
         ln = out:push_footer()
-        ln:append("output_grammar:_generate_nullable()")
+        ln:append("grammar:_generate_nullable()")
         ln:append("end")
         out:pop()
     end},
@@ -75,7 +53,7 @@ end
         ln:append("local __keys = {")
         self.children[4]:print(out)
         ln:append("\n}")
-        ln:append("\noutput_grammar:addKeywords(__keys)")
+        ln:append("\ngrammar:addKeywords(__keys)")
         out:pop()
     end},
 
@@ -84,7 +62,7 @@ end
         ln:append("local __keys = {")
         self.children[5]:print(out)
         ln:append("\n}")
-        ln:append("\nfor k,v in ipairs(__keys) do\n\toutput_grammar._keywords[v] = nil\nend ")
+        ln:append("\nfor k,v in ipairs(__keys) do\n\tgrammar._keywords[v] = nil\nend ")
         out:pop()
     end},
 
@@ -93,7 +71,7 @@ end
         ln:append("local __ops = {")
         self.children[4]:print(out)
         ln:append("\n}")
-        ln:append("\noutput_grammar:addOperators(__ops)")
+        ln:append("\ngrammar:addOperators(__ops)")
         out:pop()
     end},
 
@@ -104,7 +82,7 @@ end
         ln:append("\n}")
         ln:append([[
 
-local operators = output_grammar._operators
+local operators = grammar._operators
 for _,v in ipairs(__ops) do
     for i = #operators, 1, -1 do
         local op = operators[i]
@@ -135,10 +113,26 @@ end
     {"statement", "reset_prod"},
     {"statement", "reserve_kws"},
     {"statement", "reserve_ops"},
+    {"statement", "import_grammar"},
 
     {"reset_prod", "'@' reset Name", function(self, out)
         local ln = out:push_header()
-        ln:append("output_grammar._list[\"" .. self.children[3].value .. "\"] = nil")
+        ln:append("grammar._list[\"" .. self.children[3].value .. "\"] = nil")
+        out:pop()
+    end},
+
+    {"import_grammar", "'@' import String", function(self, out)
+        local ln = out:push_header()
+        ln:append(([[
+do
+    local status, res = pcall(__load_grammar, %s)
+    if status == false then
+        error("failed import in " .. __filepath .. "\n\t" .. res, 2)
+    else
+        res(grammar)
+    end
+end
+]]):format(self.children[3].value:gsub("^(['\"])%$", "__rootpath .. %1.")))
         out:pop()
     end},
 
@@ -151,9 +145,9 @@ end
         for _,v in ipairs(rule_list) do
             local ln = out:push_prior()
             if v == [[""]] or v == [['']] then
-                ln:append( ('output_grammar:addRule("%s", ""'):format(name) )
+                ln:append( ('grammar:addRule("%s", ""'):format(name) )
             else
-                ln:append( ('output_grammar:addRule("%s", [=[%s]=]'):format(name, v) )
+                ln:append( ('grammar:addRule("%s", [=[%s]=]'):format(name, v) )
             end
             if out._tmp_caught_functext then
                 ln:append((", %s_post"):format(name))
@@ -206,9 +200,9 @@ end
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
                 if v == [[""]] or v == [['']] then
-                    ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+                    ln:append( ('grammar:addRule("%s", "")'):format(name) )
                 else
-                    ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v) )
                 end
                 out:pop()
             end
@@ -225,14 +219,14 @@ end
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
                 if v == [[""]] or v == [['']] then
-                    ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+                    ln:append( ('grammar:addRule("%s", "")'):format(name) )
                 else
-                    ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v) )
                 end
                 out:pop()
             end
             local ln = out:push_prior()
-            ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+            ln:append( ('grammar:addRule("%s", "")'):format(name) )
             out:pop()
         return name
         end
@@ -247,16 +241,16 @@ end
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
                 if v == [[""]] or v == [['']] then
-                    ln:append( ('output_grammar:addRule("%s", "")'):format(name) )
+                    ln:append( ('grammar:addRule("%s", "")'):format(name) )
                 else
-                    ln:append( ('output_grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v) )
                 end
                 out:pop()
             end
             local ln = out:push_prior()
-            ln:append( ('output_grammar:addRule("%s_lhs", "%s_lhs %s", __repeatable_post_gather)'):format(name, name, name) )
+            ln:append( ('grammar:addRule("%s_lhs", "%s_lhs %s", __repeatable_post_gather)'):format(name, name, name) )
             local ln = out:push_prior()
-            ln:append( ('output_grammar:addRule("%s_lhs", "", __repeatable_post_base)'):format(name) )
+            ln:append( ('grammar:addRule("%s_lhs", "", __repeatable_post_base)'):format(name) )
             out:pop()
             out:pop()
         end
@@ -280,76 +274,39 @@ end
     {"any", "Keyword"}
 }
 
-local grammar = newGrammar()
-grammar:addKeywords(keys)
-grammar:addOperators(ops)
-grammar:addRules(rules)
-grammar :_generate_nullable()
-
-local __repeatable_post_base = function(self, out)
-    return { }
-end
-local __repeatable_post_gather = function(self, out)
-    local tab = self.children[1]:print(out)
-    table.insert(tab, self.children[2].children[1].value)
-    return tab
+local function apply_rules(grammar)
+    grammar:addKeywords(keys)
+    grammar:addOperators(ops)
+    grammar:addRules(rules)
+    grammar :_generate_nullable()
 end
 
--- local post_test = function(self, out)  for i,v in ipairs(self.children[1]:print()) do print(i,v) end  end
--- grammar:addRule("{String}", [=[String]=])
--- grammar:addRule("{String}", [=[Name]=])
+local grammar_loaders = create_loaders(".luxg", {apply_rules})
 
--- grammar:addRule("{String}_lhs", "", __repeatable_post_base)
--- grammar:addRule("{String}_lhs", "{String}_lhs {String}", __repeatable_post_gather)
--- grammar:addRule("test", [=[{String}_lhs]=] , post_test )
+module.loaded = {}
+function module.load_grammar(name)
+    if type(name) ~= "string" then
+        error("given filename must be a string", 2)
+    end
+    name = name:gsub("^[./\\]", "")
+    local fixedname = name:gsub("%.", "/")
+    if module.loaded[name] then
+        return module.loaded[name]
+    else
+        local sandbox = new_sandbox()
+        sandbox.__load_grammar = module.load_grammar
+        sandbox.__filepath = name
+        sandbox.__rootpath = name:gsub("[.\\/]?[^.\\/]-$", "")
+        local status, res = pcall(grammar_loaders.dofile, fixedname, sandbox)
+        if status == false then
+            error(res, 2)
+        else
+            module.loaded[name] = res
+            return res
+        end
+    end
+end
 
--- -------
-local txt = [[
-@keywords {"name", "name2", "name3", "name4", "h", "nambs"}
+module.compile = grammar_loaders.compile_file
 
-@operators {
-    "===", 
-    "!=",
-    "&&",
-}
-
-{% print ("arbitrary code") ** ==%}
-
---name -> Name [String | String] {Number | Symbol} | second (pattern | alt) | third pattern {%functext over here%}
-
-{%  %}
-
-test -> {String} {% for i,v in ipairs(self.children[1]:print()) do print(i,v) end %}
-
-@operators {
-    "$$", 
-    "()",
-    "^0",
-}
-
---name -> different pattern [h test test] | patt2 | {partt3} | (p4 hh4 | alt4) {%different functext%}
-
-@reset name
-
-]]
-
--- local txt = [[
---     "H" "Name" "Name" h
--- ]]
-
--- local function load_grammar(tokenstream)
---     local pars = parse.earley_parse(grammar, tokenstream, "start")
---     local ast = parse.extract_parsetree(pars)
---     local out = new_output()
---     ast.tree:print(out)
---     local chunk = out:print()
--- end
-
-local inpstream = tokenate.inputstream_from_text(txt)
-local tokstream = tokenate.new_tokenstream()
-tokstream:tokenate_stream(inpstream, grammar)
-local pars = parse.earley_parse(grammar, tokstream, "START")
-local ast = parse.extract_parsetree(pars)
-local out = new_output()
-ast.tree:print(out)
-print(out:print())
+return module
