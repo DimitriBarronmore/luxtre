@@ -48,14 +48,14 @@ START -> chunk
 chunk -> block
 
 block -> {statement} [return_statement] {%
+		out:flush()
 		local stlist = self.children[1]:print(out, true)
 		for _,stat in ipairs(stlist) do
 			stat:print(out)
-			out:flush()
+            out:push_next()
 		end
 		if #self.children[2].children > 0 then
 			self.children[2]:print(out)
-			out:flush()
 		end
 	%}
 
