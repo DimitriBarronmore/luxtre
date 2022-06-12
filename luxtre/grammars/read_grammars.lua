@@ -298,6 +298,7 @@ local function make_grammar_function(filename, env, print_out)
         error(("grammar file %s does not exist"):format(filename), 2)
     end
     
+---@diagnostic disable-next-line: need-check-nil
     for line in file:lines() do
         table.insert(concat, line)
     end
