@@ -16,7 +16,17 @@
 
 --[[ != Syntax ]]--
 binop -> '!=' {% out:line():append("~=") %}
-%}
+
+--[[ Table/String Colon-Syntax ]]--
+function_call -> (table_constructor | String) ':' Name arguments {%
+		local ln = out:line()
+		ln:append("(")
+		self.children[1]:print(out)
+		ln:append(")")
+		self.children[2]:print(out)
+		self.children[3]:print(out)
+		self.children[4]:print(out)
+	%}
 
 statement -> augmented_assignment
 augmented_assignment -> variable_list augmented_op expression_list {%
