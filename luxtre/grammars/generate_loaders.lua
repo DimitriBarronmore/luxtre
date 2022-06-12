@@ -145,12 +145,13 @@ local function create_loaders(filetype, grammars)
         return res()
     end
 
-    loaders.compile_file = function(filename)
+    loaders.compile_file = function(filename, outputname)
+        outputname = outputname or filename .. ".lua"
         local adjusted_filename = fix_filename(filename, filetype)
         local inputstream = create_inpstream(adjusted_filename)
         local compiled_text = generic_compile(inputstream, grammars)
 
-        local file = io.open(filename .. ".lua", "w+")
+        local file = io.open(outputname, "w+")
         file:write(compiled_text)
         file:flush()
         file:close()
