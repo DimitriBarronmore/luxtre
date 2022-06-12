@@ -83,7 +83,7 @@ augmented_op -> '|=' {% return "or" %}
 @reset field
 field -> field_lh field_assignment expression
 
-field_lh -> Name
+field_lh -> Name | '[' expression ']'
 field_lh -> expression {%
 	local ln = out:line()
 	ln:append "["
