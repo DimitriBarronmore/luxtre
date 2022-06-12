@@ -3,6 +3,8 @@
 local path = (...):gsub("grammars[./\\]generate_loaders", "")
 
 local newGrammar = require(path .. "parser.grammar")
+local load_grammar = require(path .. "grammars.read_grammars").load_grammar
+local preprocess = require(path .. "parser.preprocess")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
 local ast = require(path .. "parser.ast")
@@ -28,9 +30,28 @@ local function create_grammar(apply_grammars)
     return grammar
 end
 
+local function process_input(source, isfile)
+    local origname = source
+    local fixedname = source:gsub("%.([^.\\/]-%.)", "/%1")
+    if isfile then
+        local concat = {}
+        for line in io.lines(fixedname) do
+            table.insert(concat, line)
+        end
+        source = table.concat(concat,"\n")
+    else
+        origname = "<string>"
+    end
+    local ppenv = preprocess(source, origname)
 
-local function generic_compile(inputstream, grammars)
-    local grammar = create_grammar(grammars)
+    local inpstream = tokenate.inputstream_from_ppenv(ppenv)
+
+    return inpstream, ppenv
+end
+
+
+local function generic_compile(inputstream, grammar)
+    -- local grammar = create_grammar(grammars)
     local tokenstream = tokenate.new_tokenstream()
     tokenstream:tokenate_stream(inputstream, grammar)
 
@@ -79,13 +100,6 @@ local function fix_filename(filename, filetype)
     return filename
 end
 
-local function create_inpstream(filename)
-    local status,res = pcall(tokenate.inputstream_from_file, filename)
-    if status == false then
-        error("file '" .. filename .. "' does not exist", 3)
-    end
-    return res
-end
 
 local function load_chunk(compiled_text, filename, env)
     local chunk, err = load_func(compiled_text, filename, "t", env)
@@ -116,8 +130,16 @@ local function create_loaders(filetype, grammars)
 
     loaders.loadfile = function(filename, env)
         filename = fix_filename(filename, filetype)
-        local inputstream = create_inpstream(filename)
-        local compiled_text = generic_compile(inputstream, grammars)
+        local grammar = create_grammar(grammars)
+
+        local inpstream, ppenv = process_input(filename, true)
+        for _,g in ipairs(ppenv.__extra_grammars) do
+            local appg = load_grammar(g)
+            appg(grammar)
+        end
+
+        -- local inputstream = create_inpstream(filename)
+        local compiled_text = generic_compile(inpstream, grammar)
         local chunk = load_chunk(compiled_text, filename, env)
         return chunk
     end
@@ -134,8 +156,15 @@ local function create_loaders(filetype, grammars)
         if type(str) ~= "string" then
             error("input must be a string", 2)
         end
-        local inputstream = tokenate.inputstream_from_text(str)
-        local compiled_text = generic_compile(inputstream, grammars)
+        local grammar = create_grammar(grammars)
+
+        local inpstream, ppenv = process_input(str, false)
+        for _,g in ipairs(ppenv.__extra_grammars) do
+            local appg = load_grammar(g)
+            appg(grammar)
+        end
+
+        local compiled_text = generic_compile(inpstream, grammar)
         local chunk = load_chunk(compiled_text, str, env)
         return chunk
     end
@@ -151,8 +180,16 @@ local function create_loaders(filetype, grammars)
     loaders.compile_file = function(filename, outputname)
         outputname = outputname or filename .. ".lua"
         local adjusted_filename = fix_filename(filename, filetype)
-        local inputstream = create_inpstream(adjusted_filename)
-        local compiled_text = generic_compile(inputstream, grammars)
+        local grammar = create_grammar(grammars)
+
+        local inpstream, ppenv = process_input(adjusted_filename, true)
+        for _,g in ipairs(ppenv.__extra_grammars) do
+            local appg = load_grammar(g)
+            appg(grammar)
+        end
+
+        -- local inputstream = create_inpstream(filename)
+        local compiled_text = generic_compile(inpstream, grammar)
 
         local file = io.open(outputname, "w+")
         file:write(compiled_text)

@@ -4,6 +4,7 @@ local load_func = require(path .. "utils.safeload")
 
 local new_sandbox = require(path .. "utils.sandbox")
 
+
 local export = {}
 
 --states:
@@ -232,16 +233,31 @@ local macros_mt = {
 }
 
 local function setup_sandbox(name)
-    name = name or ""
     local sandbox = new_sandbox()
+    sandbox.filename = name or ""
     sandbox.macros = setmetatable({__listed = {}}, macros_mt)
     sandbox._output = {}
     sandbox._write_lines = {}
     sandbox._linemap = {}
+    sandbox.__extra_grammars = {}
 
     sandbox._write = function(num)
         table.insert(sandbox._output, sandbox._write_lines[num])
         sandbox._linemap[#sandbox._output] = num
+    end
+
+    sandbox.add_grammar = function(grammar)
+        if type(grammar) ~= "string" then
+            error("given filepath must be a string",2)
+        end
+        local found = false
+        for _,v in ipairs(sandbox.__extra_grammars) do
+            if v == grammar then
+                found = true
+                break
+            end
+        end
+        table.insert(sandbox.__extra_grammars, grammar)
     end
 
     return sandbox
@@ -372,4 +388,4 @@ function export.compile_lines(text, name)
     -- return table.concat(direc_lines), write_lines
 end
 
-return export
+return export.compile_lines

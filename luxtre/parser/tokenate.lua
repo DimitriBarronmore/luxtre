@@ -2,8 +2,10 @@
 ---@module "grammar"
 --local grammar
 
-local path = (...):gsub("tokenate", "")
-local preprocess = require(path .. "preprocess")
+local path = (...):gsub("parser[./\\]tokenate", "")
+-- local preprocess = require(path .. "parser.preprocess")
+-- local load_grammar = require(path .. "grammars.read_grammars")
+
 
 local export = {}
 
@@ -103,14 +105,36 @@ function inputstream_base:splice(text)
 end
 
 
+function export.inputstream_from_ppenv(ppenv)
+
+    ---@type lux_inputstream
+    local inpstr = {
+        lines = ppenv._output,
+        linemap = ppenv._linemap
+    }
+    inpstr.current_line = math.min(1, #inpstr.lines)
+    inpstr.current_index = 1
+    inpstr.name = ppenv._name or "<unknown>"
+    inpstr.source = "text"
+    setmetatable(inpstr, inputstream_base)
+    return inpstr
+end
+
 ---@param text string
 ---@return lux_inputstream
 function export.inputstream_from_text(text, name)
     text = text:gsub('\r\n?', "\n")
-    local ppenv = preprocess.compile_lines(text)
+    local lines = {}
+    for line in (text .. "\n"):gmatch(".-\n") do
+        table.insert(lines, line)
+    end
 
     ---@type lux_inputstream
-    local inpstr = { lines = ppenv._output, linemap = ppenv._linemap }
+    local inpstr = { 
+        lines = lines
+        -- linemap = ppenv._linemap,
+        -- ext_grammars = ppenv.__extra_grammars
+    }
     inpstr.current_line = math.min(1, #inpstr.lines)
     inpstr.current_index = 1
     inpstr.name = name or "<unknown>"
@@ -119,17 +143,17 @@ function export.inputstream_from_text(text, name)
     return inpstr
 end
 
----@param filename string
----@return lux_inputstream
-function export.inputstream_from_file(filename, name)
-    local concat = {}
-    for line in io.lines(filename) do
-        table.insert(concat, line)
-    end
-    local inpstr = export.inputstream_from_text(table.concat(concat,"\n"), name)
-    inpstr.source = ("file '%s'"):format(filename)
-    return inpstr
-end
+-- ---@param filename string
+-- ---@return lux_inputstream
+-- function export.inputstream_from_file(filename, name)
+--     local concat = {}
+--     for line in io.lines(filename) do
+--         table.insert(concat, line)
+--     end
+--     local inpstr = export.inputstream_from_text(table.concat(concat,"\n"), name)
+--     inpstr.source = ("file '%s'"):format(filename)
+--     return inpstr
+-- end
 
 function inputstream_base:_debug()
     local concat = {}
@@ -291,6 +315,11 @@ end
 ---@param grammar lux_grammar
 ---@return lux_tokenstream
 function tokenstream_base:tokenate_stream(inpstr, grammar)
+    -- for _,g in ipairs(inpstr.ext_grammars) do
+    --     local appgrammar = load_grammar(g)
+    --     appgrammar(grammar)
+    -- end
+
     for _,line in ipairs(inpstr.lines) do
         table.insert(self._lines, line)
     end
@@ -308,7 +337,9 @@ function tokenstream_base:tokenate_stream(inpstr, grammar)
         -- local this_line = inpstr.lines[inpstr.current_line]
         local next_char, position = inpstr:peek(1)
         position[3] = position[1]
-        position[1] = inpstr.linemap[position[1]]
+        if inpstr.linemap then
+            position[1] = inpstr.linemap[position[1]]
+        end
 
         if next_char:match("[%a_]") then -- Name / Macros / Keyword
             local pos = 2

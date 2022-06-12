@@ -3,6 +3,9 @@ Before the file is compiled, lines which begin with '#' are run in the preproces
 
 The preprocessor is not yet complete, but in the current state it can be used to determine what is written to the final file as well as define macros.
 
+## Constant Variables
+- filename: the path to the current file, or an empty string if the code came from loading a string.
+
 ## Conditional Lines
 
 Within an unclosed preprocessor block (`do`, `if`, `while`, `repeat`, or `for`), input lines will only be written to the output dependent on the surrounding preprocessor code. 
@@ -74,4 +77,18 @@ print(<blank>) --> 'print()'
 print(fizzbuzz)         --> 'print("1 2 fizz 4 buzz fizz 7 8 fizz buzz")'
 print("add_bark(woof)") --> 'print("barkwoofbark")'
 print(blank)            --> 'print()'
+```
+
+## Extending the Current Grammar
+The `add_grammar(filename)` function allows you to extend the current file's syntax with the given `.luxg` grammar definition. Grammars added this way are loaded in order.
+```lua
+-- loads the file "folder.extension.luxg"
+-- in order to make the syntax consistent with require,
+-- dots in the path are converted to "/"
+# add_grammar "folder.extension"
+
+-- note that you can use the filename variable to load adjacent grammars.
+-- assuming the current file is "folder/foobar.lux":
+# local path = filename:gsub("foobar", "")
+# add_grammar(path .. "extension")
 ```

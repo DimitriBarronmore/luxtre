@@ -1,6 +1,15 @@
 local path = (...):gsub("grammars[./\\]read_grammars", "")
-local create_loaders = require(path .. "grammars.generate_loaders")
+-- local create_loaders = require(path .. "grammars.generate_loaders")
+
+
+local newGrammar = require(path .. "parser.grammar")
+local tokenate = require(path .. "parser.tokenate")
+local parse = require(path .. "parser.parse")
+local ast = require(path .. "parser.ast")
+local new_output = require(path .. "parser.output")
+
 local new_sandbox = require(path .. "utils.sandbox")
+local load_func = require(path .. "utils.safeload")
 
 local module = {}
 
@@ -19,7 +28,7 @@ local ops = {
     "%}"
 }
 local rules = {
-    {"START", "block", function(self, out)
+    {"START", "block <eof>", function(self, out)
         local ln = out:push_header()
         ln:append("return function( grammar )")
         ln:append([[
@@ -125,7 +134,7 @@ end
         local ln = out:push_header()
         ln:append(([[
 do
-    local status, res = pcall(__load_grammar, %s)
+    local status, res = pcall(__load_grammar, %s, true)
     if status == false then
         error("failed import in " .. __filepath .. "\n\t" .. res, 2)
     else
@@ -274,22 +283,58 @@ end
     {"any", "Keyword"}
 }
 
-local function apply_rules(grammar)
-    grammar:addKeywords(keys)
-    grammar:addOperators(ops)
-    grammar:addRules(rules)
-    grammar :_generate_nullable()
+
+
+local grammar = newGrammar()
+grammar:addKeywords(keys)
+grammar:addOperators(ops)
+grammar:addRules(rules)
+grammar :_generate_nullable()
+
+local function make_grammar_function(filename, env, print_out)
+    local concat = {}
+    local file = io.open(filename)
+    if not file then
+        error(("grammar file %s does not exist"):format(filename), 2)
+    end
+    
+    for line in file:lines() do
+        table.insert(concat, line)
+    end
+    local inpstream = tokenate.inputstream_from_text(table.concat(concat, "\n"), filename)
+    local tokstream = tokenate.new_tokenstream()
+    tokstream:tokenate_stream(inpstream, grammar)
+
+    local status, res = pcall(parse.earley_parse, grammar, tokstream, "START")
+    if status == false then
+        error(res, 2)
+    end
+    local fast = ast.earley_extract(res)
+    local output = new_output()
+    fast.tree:print(output)
+    local compiled = output:print()
+    if print_out then
+        print(compiled)
+    end
+
+    local chunk, err = load_func(compiled, filename, "t", env)
+    if err then
+        error(err, 0)
+    end
+
+    return chunk()
 end
 
-local grammar_loaders = create_loaders(".luxg", {apply_rules})
-
 module.loaded = {}
-function module.load_grammar(name)
+function module.load_grammar(name, print_out)
     if type(name) ~= "string" then
         error("given filename must be a string", 2)
     end
     name = name:gsub("^[./\\]", "")
     local fixedname = name:gsub("%.", "/")
+    fixedname = fixedname .. ".luxg"
+    name = name .. ".luxg"
+
     if module.loaded[name] then
         return module.loaded[name]
     else
@@ -297,7 +342,7 @@ function module.load_grammar(name)
         sandbox.__load_grammar = module.load_grammar
         sandbox.__filepath = name
         sandbox.__rootpath = name:gsub("[.\\/]?[^.\\/]-$", "")
-        local status, res = pcall(grammar_loaders.dofile, fixedname, sandbox)
+        local status, res = pcall(make_grammar_function, fixedname, sandbox, print_out)
         if status == false then
             error(res, 2)
         else
@@ -306,7 +351,5 @@ function module.load_grammar(name)
         end
     end
 end
-
-module.compile = grammar_loaders.compile_file
 
 return module
