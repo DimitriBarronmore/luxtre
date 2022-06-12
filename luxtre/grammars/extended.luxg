@@ -10,13 +10,12 @@
     '%=',
     '^=',
 --    '++',
+	'!=',
 }
 
-variable -> table_constructor | String {%
-	local ln = out:line()
-	ln:append("(")
-	self.children[1]:print(out)
-	ln:append(")")
+
+--[[ != Syntax ]]--
+binop -> '!=' {% out:line():append("~=") %}
 %}
 
 statement -> augmented_assignment
