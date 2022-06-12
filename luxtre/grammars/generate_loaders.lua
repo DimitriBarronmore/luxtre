@@ -104,7 +104,10 @@ local function filepath_search(filepath, filetype)
     end
 end
 
-
+---@param filetype string
+---The file extension (including dot) to search for.
+---@param grammars table
+---A table of grammars to apply
 -- Take a list of grammars and make a set of load funcs for them
 local function create_loaders(filetype, grammars)
     filetype = filetype or ".lux"
