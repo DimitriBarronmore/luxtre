@@ -135,3 +135,66 @@ lambda ->  ['(' paramlist ')' ] ('->' | '=>') statement {%
 	self.children[3]:print(out)
 	ln:append "end"
 %}
+
+
+--[[ Function Decorators ]]--
+
+statement -> decorated_func
+
+func_decorator -> '@' function_name
+
+decorated_func -> func_decorator (function_assignment 
+									| local_function_assignment 
+									| lambda_function_assignment 
+									| lambda_local_function_assignment
+									| decorated_func
+								) {% 							
+	local assignment = self.children[2].children[1]
+	local func_name
+	local func_body
+
+	if assignment.rule == "decorated_func" then
+		--local ln = out:push_next()
+		--out:pop()
+
+		local assign_name = assignment:print(out)
+		--table.insert(out._stack, ln)
+
+		local ln = out:push_next()
+		assign_name:print(out)
+		ln:append "="
+		self.children[1].children[2]:print(out)
+		ln:append "("
+		assign_name:print(out)
+		ln:append ")"
+		return assign_name
+	end
+
+	if assignment.rule == "function_assignment" then
+		func_name = assignment.children[2]
+		func_body = assignment.children[3]
+	elseif assignment.rule == "local_function_assignment" then
+		func_name = assignment.children[3]
+		func_body = assignment.children[4]
+	elseif assignment.rule == "lambda_function_assignment" then
+		func_name = assignment.children[1]
+		func_body = assignment.children[2]
+	elseif assignment.rule == "lambda_local_function_assignment" then
+		func_name = assignment.children[2]
+		func_body = assignment.children[3]
+	end
+	
+	local ln = out:line()
+	func_name:print(out)
+	ln:append "="
+	self.children[1].children[2]:print(out)
+	ln:append "("
+	if assignment.rule ~= "lambda_function_assignment" 
+	and assignment.rule ~= "lambda_local_function_assignment" then
+		ln:append "function"
+	end
+	func_body:print(out)
+	out:line():append ")"
+
+	return func_name
+%}
