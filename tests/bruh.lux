@@ -1,8 +1,5 @@
 
-print ("hello world ":rep(4))
+# add_grammar "tg2"
 
-if cond.yy and not hh then
+@
 
-end
-
-print(hhh["hello"])

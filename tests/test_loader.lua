@@ -2,7 +2,7 @@
 local loader = require "luxtre.loader"
 loader.register()
 
-require("bruh")
+require("tests.bruh")
 
 -- require("test_macros")
 
@@ -14,5 +14,5 @@ require("bruh")
 
 -- loader.dofile("bruh")
 
--- chunk = loader.dostring("print('test':rep(5) &)")
+-- chunk = loader.dostring("print(('test'):rep(5))")
 -- chunk()

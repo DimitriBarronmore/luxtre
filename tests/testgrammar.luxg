@@ -1,0 +1,28 @@
+--[==[    @keywords {"name", "name2", "name3", "name4", "h", "nambs"}
+    @keywords remove {"nambs", "h"}
+    
+    @operators {
+        "===", 
+        "!=",
+        "&&",
+    }
+    @operators remove {"&&"}
+    
+    name -> Name [String | String] {Number | Symbol} | second (pattern | alt) | third pattern
+    
+    {%  %}
+    
+    test -> {String} {% for i,v in ipairs(self.children[1]:print(out)) do print(i,v) end %}
+    
+    name -> different pattern [h test test] | patt2 | {partt3} | (p4 hh4 | alt4)
+    
+    @reset name
+--]==]
+    @import "tg2"
+    
+    {% apple = true 
+
+    print(__filepath)  
+    print(__rootpath)
+    
+    %}

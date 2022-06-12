@@ -1,0 +1,5 @@
+
+stat -> '@' {% 
+    local ln = out:line()
+    ln:append([[ print("it's working") ]])
+%}
