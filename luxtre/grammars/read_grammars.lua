@@ -131,6 +131,7 @@ end
     {"reset_prod", "'@' reset Name", function(self, out)
         local ln = out:push_header()
         ln:append("grammar._list[\"" .. self.children[3].value .. "\"] = nil")
+        ln:append("grammar._used[\"" .. self.children[3].value .. "\"] = nil")
         out:pop()
     end},
 

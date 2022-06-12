@@ -107,11 +107,14 @@ function grammar_core:addRule(name, rule, post)
   -- if type(post) ~= "function" and post ~= nil then
   --   error("invalid argument: expected nil or function, got " .. type(post))
   -- end
-  local hash = name .. ">>" .. rule
-  if self._used[hash] then
+  -- local hash = name .. ">>" .. rule
+  if not self._used[name] 
+    then self._used[name] = {}
+  end
+  if self._used[name][rule] then
     return
   else
-    self._used[hash] = true
+    self._used[name][rule] = true
   end
   if not self._list[name] then
     self._list[name] = {}
