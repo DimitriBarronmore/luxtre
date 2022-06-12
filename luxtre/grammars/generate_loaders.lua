@@ -102,6 +102,7 @@ end
 
 
 local function load_chunk(compiled_text, filename, env)
+    env = env or _G
     local chunk, err = load_func(compiled_text, filename, "t", env)
     if err then
         error(err, 0)
