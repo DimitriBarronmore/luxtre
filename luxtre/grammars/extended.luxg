@@ -77,3 +77,22 @@ augmented_op -> '^=' {% return "^" %}
 augmented_op -> '&=' {% return "and" %}
 augmented_op -> '|=' {% return "or" %}
 
+
+--[[ Table Constructors ]]--
+
+@reset field
+field -> field_lh field_assignment expression
+
+field_lh -> Name
+field_lh -> expression {%
+	local ln = out:line()
+	ln:append "["
+	self.children[1]:print(out)
+	ln:append "]"
+%}
+
+field_assignment -> '='
+	| ':' 
+	{% out:line():append("=") %}
+
+
