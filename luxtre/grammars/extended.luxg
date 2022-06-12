@@ -96,3 +96,42 @@ field_assignment -> '='
 	{% out:line():append("=") %}
 
 
+--[[ Arrow Lambdas ]]--
+anonymous_function -> lambda
+statement -> lambda_function_assignment
+statement -> lambda_local_function_assignment
+
+lambda_function_assignment -> function_name lambda {% 
+	local ln = out:line()
+	self.children[1]:print(out)
+	ln:append "="
+	self.children[2]:print(out)
+%}
+
+lambda_local_function_assignment -> local function_name lambda {% 
+	local ln = out:line()
+	self.children[1]:print(out)
+	self.children[2]:print(out)
+	ln:append "="
+	self.children[3]:print(out)
+%}
+
+lambda ->  ['(' paramlist ')' ] ('->' | '=>') statement {%
+	local params = self.children[1].children
+	local arrow_type = self.children[2].children[1].value
+	local ln = out:line()
+
+	ln:append "function("
+	if arrow_type == "=>" then
+		ln:append "self"
+	end
+	if #params > 0 then
+		if arrow_type == "=>" then
+			ln:append ","
+		end
+		self.children[1].children[2]:print(out)
+	end
+	ln:append ")"
+	self.children[3]:print(out)
+	ln:append "end"
+%}
