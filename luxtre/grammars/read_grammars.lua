@@ -39,13 +39,17 @@ local __repeatable_post_base = function(self, out)
 end
 local __repeatable_post_gather = function(self, out, gather)
     local tab = self.children[1]:print(out, true)
-    table.insert(tab, self.children[2].children[1])
+    local val = self.children[2]
+
+    table.insert(tab, val)
     if gather then
         return tab
+    else
+        for _, child in ipairs(tab) do
+            child:print(out)
+        end
     end
-    for _, child in ipairs(tab) do
-        child:print(out)
-    end
+
 end
         ]])
         out:pop()
@@ -134,7 +138,7 @@ end
         local ln = out:push_header()
         ln:append(([[
 do
-    local status, res = pcall(__load_grammar, %s, true)
+    local status, res = pcall(__load_grammar, %s)
     if status == false then
         error("failed import in " .. __filepath .. "\n\t" .. res, 2)
     else
@@ -191,7 +195,7 @@ end
         end
         return tab
     end},
-    
+
     {"rule_pattern", "rule_pattern rule_item", function(self, out)
         local tab = self.children[1]:print(out)
         table.insert(tab, self.children[2]:print(out))
@@ -237,8 +241,8 @@ end
             local ln = out:push_prior()
             ln:append( ('grammar:addRule("%s", "")'):format(name) )
             out:pop()
-        return name
         end
+        return name
     end},
 
     {"rule_item", "'{' rule_list '}'", function(self, out)
@@ -334,7 +338,6 @@ function module.load_grammar(name, print_out)
     name = name:gsub("^[./\\]", "")
     local fixedname = name:gsub("%.", "/")
     fixedname = fixedname .. ".luxg"
-    name = name .. ".luxg"
 
     if module.loaded[name] then
         return module.loaded[name]
