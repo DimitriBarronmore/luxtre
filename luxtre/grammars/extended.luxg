@@ -134,6 +134,7 @@ lambda ->  ['(' paramlist ')' ] ('->' | '=>') statement {%
 	end
 	ln:append ")"
 	self.children[3]:print(out)
+	ln = out:line()
 	ln:append "end"
 %}
 
