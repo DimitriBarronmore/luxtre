@@ -16,6 +16,207 @@
 }
 
 
+--[[ Variable Scoping Crimes ]]--  
+
+{%
+local function check_localness(out, varname)
+	if not out.data.__setup_env then
+		local ln = out:push_header()
+		ln:append [[
+local _ENV = _ENV
+if _VERSION < "Lua 5.2" then
+    _ENV = (getfenv and getfenv()) or _G
+end
+		]]
+		out:pop()
+		out.data.__setup_env = true
+	end
+	if not out.scope.__variable_states then out.scope.__variable_states = {} end
+
+	if out.scope.__variable_states[varname] == "global" then
+		return false
+	elseif out.scope.__variable_states[varname] == "local" then
+		return true
+	else
+		return
+	end
+end
+
+local function set_global(out, name)
+	if not out.scope.__variable_states then out.scope.__variable_states = {} end
+	out.scope.__variable_states[name] = "global"
+end
+local function set_local(out, name)
+	if not out.scope.__variable_states then out.scope.__variable_states = {} end
+	out.scope.__variable_states[name] = "local"
+end
+local function reset_scope(out, name)
+	if not out.scope.__variable_states then out.scope.__variable_states = {} end
+	out.scope.__variable_states[name] = nil
+end
+%}
+
+@keywords { "global" }
+
+@reset variable
+
+variable -> prefix_expression '[' expression ']'
+    | prefix_expression '.' Name 
+	
+variable -> Name {%
+	local is_local = check_localness(out, self.children[1].value)
+	if is_local == false then
+		out:line():append("_ENV.")
+	end
+	
+	self.children[1]:print(out)
+%}
+
+statement -> global_assignment
+global_assignment -> global name_list ['=' expression_list] {%
+	local lhtab = { self.children[2].children[1] }
+	local gathertab = self.children[2].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for i,v in ipairs(lhtab) do
+		check_localness(out, v.value)
+		set_global(out, v.value)
+		if #self.children[3].children > 0 then
+			local ln = out:line()
+			ln:append "_ENV."
+			v:print(out)
+			if i < #lhtab then
+				ln:append ","
+			end
+		end
+	end
+		self.children[3]:print(out)
+%}
+
+@reset assignment
+assignment -> variable_list '=' expression_list {%
+	local lhtab = { self.children[1].children[1] }
+	local gathertab = self.children[1].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for _, var in ipairs(lhtab) do
+		if var.children[1].rule == "Name" then
+			local vname = var.children[1].value
+			local islocal = check_localness(out, vname)
+			print(vname, islocal)
+			if islocal == nil then
+				print("pushback", vname)
+				set_local(out, vname)
+				local ln = out:push_prior()
+				ln:append("local " .. vname)
+				out:pop()
+			end
+			--out:line():append("namehere")
+		end
+	end
+	self.children[1]:print(out)
+	self.children[2]:print(out)
+	self.children[3]:print(out)
+%}
+
+@reset local_assignment
+local_assignment -> local name_list ['=' expression_list] {%
+	self.children[1]:print(out)
+	local lhtab = { self.children[2].children[1] }
+	local gathertab = self.children[2].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for i,v in ipairs(lhtab) do
+		set_local(out, v.value)
+	end
+		self.children[2]:print(out)
+		self.children[3]:print(out)
+%}
+
+@reset for_numeric
+for_numeric -> for Name '=' expression ',' expression [',' expression] do_block {%
+	out.scope:push()
+	set_local(out, self.children[2].value)
+	for _,child in ipairs(self.children) do
+		child:print(out)
+	end
+	out.scope:pop()
+%}
+
+@reset for_in
+for_in -> for name_list in expression_list do_block {%
+	out.scope:push()
+	local lhtab = { self.children[2].children[1] }
+	local gathertab = self.children[2].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for i,v in ipairs(lhtab) do
+		set_local(out, v.value)
+	end
+	for _, child in ipairs(self.children) do
+		child:print(out)
+	end
+	out.scope:pop()
+%}
+
+@reset function_assignment
+function_assignment -> function function_name function_body {%
+	for _,child in ipairs(self.children) do
+		child:print(out)
+	end
+	set_global(out, self.children[2].children[1].value)
+%}
+
+@reset local_function_assignment
+local_function_assignment -> local function Name function_body {%
+	for _,child in ipairs(self.children) do
+		child:print(out)
+	end
+	set_local(out, self.children[3].value)
+%}
+
+statement -> global_function_assignment
+global_function_assignment -> global function Name function_body {%
+	for _,child in ipairs(self.children) do
+		if _ == 1 then
+			ln:append("_ENV.")
+		else
+			child:print(out)
+		end
+	end
+	set_global(out, self.children[3].value)
+%}
+
+@reset paramlist
+paramlist -> '...'
+paramlist -> name_list [',' '...'] {%
+	local lhtab = { self.children[1].children[1] }
+	local gathertab = self.children[1].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for i,v in ipairs(lhtab) do
+		set_local(out, v.value)
+	end
+	for _, child in ipairs(self.children) do
+		child:print(out)
+	end
+%}
+
+@reset function_body
+function_body -> '(' [paramlist] ')' block end {%
+	out.scope:push()
+	for _,child in ipairs(self.children) do
+		child:print(out)
+	end
+	out.scope:pop()
+%}
+
+
 --[[ != Syntax ]]--
 binop -> '!=' {% out:line():append("~=") %}
 
@@ -101,23 +302,37 @@ field_assignment -> '='
 anonymous_function -> lambda
 statement -> lambda_function_assignment
 statement -> lambda_local_function_assignment
+statement -> lambda_global_function_assignment
 
 lambda_function_assignment -> function_name lambda {% 
 	local ln = out:line()
 	self.children[1]:print(out)
 	ln:append "="
 	self.children[2]:print(out)
+	set_global(out, self.children[1].children[1].value)
 %}
 
-lambda_local_function_assignment -> local function_name lambda {% 
+lambda_local_function_assignment -> local Name lambda {% 
 	local ln = out:line()
 	self.children[1]:print(out)
 	self.children[2]:print(out)
 	ln:append "="
 	self.children[3]:print(out)
+	set_local(out, self.children[2].value)
 %}
 
+lambda_global_function_assignment -> global Name lambda {% 
+	local ln = out:line()
+	ln:append("_ENV.")
+	self.children[2]:print(out)
+	ln:append "="
+	self.children[3]:print(out)
+	set_global(out, self.children[2].value)
+%}
+
+
 lambda ->  ['(' paramlist ')' ] ('->' | '=>') statement {%
+	out.scope:push()
 	local params = self.children[1].children
 	local arrow_type = self.children[2].children[1].value
 	local ln = out:line()
@@ -136,6 +351,7 @@ lambda ->  ['(' paramlist ')' ] ('->' | '=>') statement {%
 	self.children[3]:print(out)
 	ln = out:line()
 	ln:append "end"
+	out.scope:pop()
 %}
 
 
@@ -147,8 +363,10 @@ func_decorator -> '@' function_name
 
 decorated_func -> func_decorator (function_assignment 
 									| local_function_assignment 
+									| global_function_assignment 
 									| lambda_function_assignment 
 									| lambda_local_function_assignment
+									| lambda_global_function_assignment
 									| decorated_func
 								) {% 							
 	local assignment = self.children[2].children[1]
@@ -171,22 +389,51 @@ decorated_func -> func_decorator (function_assignment
 		ln:append ")"
 		return assign_name
 	end
-
+	
+	local ln = out:line()
+	local setfunc, setval
 	if assignment.rule == "function_assignment" then
+		setval = assignment.children[2].children[1].value
 		func_name = assignment.children[2]
 		func_body = assignment.children[3]
 	elseif assignment.rule == "local_function_assignment" then
+		ln:append("local")
+		setfunc, setval = set_local, assignment.children[3].value
+		func_name = assignment.children[3]
+		func_body = assignment.children[4]
+	elseif assignment.rule == "global_function_assignment" then
+		ln:append("_ENV.")
+		setfunc, setval = set_global, assignment.children[3].value
 		func_name = assignment.children[3]
 		func_body = assignment.children[4]
 	elseif assignment.rule == "lambda_function_assignment" then
+		setval = assignment.children[1].children[1].value
 		func_name = assignment.children[1]
 		func_body = assignment.children[2]
 	elseif assignment.rule == "lambda_local_function_assignment" then
+		ln:append("local")
+		setfunc, setval = set_local, assignment.children[2].value
+		func_name = assignment.children[2]
+		func_body = assignment.children[3]
+	elseif assignment.rule == "lambda_global_function_assignment" then
+		ln:append("_ENV.")
+		setfunc, setval = set_global, assignment.children[2].value
 		func_name = assignment.children[2]
 		func_body = assignment.children[3]
 	end
 	
-	local ln = out:line()
+	if setfunc == nil then
+		local status = check_localness(out, setval)
+		if status == nil then
+			setfunc = set_local
+		elseif status == false then
+			setfunc = set_global
+			ln:append("_ENV.")
+		elseif status == true then
+			setfunc = set_local
+		end
+	end
+
 	func_name:print(out)
 	ln:append "="
 	self.children[1].children[2]:print(out)
@@ -198,5 +445,6 @@ decorated_func -> func_decorator (function_assignment
 	func_body:print(out)
 	out:line():append ")"
 
+	setfunc(out, setval)
 	return func_name
 %}

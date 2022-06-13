@@ -48,6 +48,7 @@ START -> chunk
 chunk -> block
 
 block -> {statement} [return_statement] {%
+		out.scope:push()
 		out:flush()
 		local stlist = self.children[1]:print(out, true)
 		for _,stat in ipairs(stlist) do
@@ -57,6 +58,7 @@ block -> {statement} [return_statement] {%
 		if #self.children[2].children > 0 then
 			self.children[2]:print(out)
 		end
+		out.scope:pop()
 	%}
 
 statement -> ';'
