@@ -15,6 +15,10 @@
 	'!=',
 }
 
+@keywords {
+	"let",
+}
+
 
 --[[ Variable Scoping Crimes ]]--  
 
@@ -596,4 +600,27 @@ decorated_func -> func_decorator (function_assignment
 
 	setfunc(out, setval)
 	return func_name
+%}
+
+
+--[[ Let Assignment ]]--
+
+statement -> let_assignment
+
+let_assignment -> let name_list ['=' expression_list] {%
+	local lhtab = { self.children[2].children[1] }
+	local gathertab = self.children[2].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for i,v in ipairs(lhtab) do
+		set_local(out, v.value)
+		local ln = out:push_prior()
+		ln:append( ("local %s"):format(v.value) )
+		out:pop()
+	end
+	if #self.children[3].children > 0 then
+		self.children[2]:print(out)
+		self.children[3]:print(out)
+	end
 %}
