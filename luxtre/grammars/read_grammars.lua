@@ -206,7 +206,7 @@ end
 
 
     {"rule_item", "'(' rule_list ')'", function(self, out)
-        local tab = self.children[2]:print()
+        local tab = self.children[2]:print(out)
         local name = ("(" .. table.concat(tab, "|") .. ")"):gsub(" ", "_")
         if not out.data.__used_ebnf then out.data.__used_ebnf = {} end
         if not out.data.__used_ebnf[name] then
@@ -225,7 +225,7 @@ end
     end},
 
     {"rule_item", "'[' rule_list ']'", function(self, out)
-        local tab = self.children[2]:print()
+        local tab = self.children[2]:print(out)
         local name = ("[" .. table.concat(tab, "|") .. "]"):gsub(" ", "_")
         if not out.data.__used_ebnf then out.data.__used_ebnf = {} end
         if not out.data.__used_ebnf[name] then
