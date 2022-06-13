@@ -54,6 +54,33 @@ local function reset_scope(out, name)
 	if not out.scope.__variable_states then out.scope.__variable_states = {} end
 	out.scope.__variable_states[name] = nil
 end
+
+local function get_hastemp(out, name)
+	if not out.scope.__TEMP_variable_states then out.scope.__TEMP_variable_states = {} end
+	return out.scope.__TEMP_variable_states[name]
+end
+local function toggle_temps(out, bool)
+	out.scope.__TEMP_variable_enabled = bool
+end
+local function temp_local(out, name)
+	if not out.scope.__TEMP_variable_states then out.scope.__TEMP_variable_states = {} end
+	out.scope.__TEMP_variable_states[name] = "local"
+end
+local function temp_global(out, name)
+	if not out.scope.__TEMP_variable_states then out.scope.__TEMP_variable_states = {} end
+	out.scope.__TEMP_variable_states[name] = "global"
+end
+local function push_temp_vars(out)
+	if not out.scope.__TEMP_variable_states then out.scope.__TEMP_variable_states = {} end
+	for name, val in pairs(out.scope.__TEMP_variable_states) do
+		if val == "local" then
+			set_local(out, name)
+		else
+			set_global(out, name)
+		end
+	end
+	out.scope.__TEMP_variable_states = {}
+end
 %}
 
 @keywords { "global" }
@@ -62,36 +89,60 @@ end
 
 variable -> prefix_expression '[' expression ']'
     | prefix_expression '.' Name 
-	
+
 variable -> Name {%
-	local is_local = check_localness(out, self.children[1].value)
-	if is_local == false then
+	local name = self.children[1].value
+	local append_env
+	local was_temp = false
+	if out.scope.__TEMP_variable_enabled then
+		local type = get_hastemp(out, name)
+		if type == "global" then
+			was_temp = true
+			append_env = true
+		elseif type == "local" then
+			was_temp = true
+			append_env = false
+		end
+	end
+	if not was_temp then
+		local is_local = check_localness(out, name)
+		if is_local ~= true then
+			append_env = true
+		end
+	end
+	if append_env then
 		out:line():append("_ENV.")
 	end
-	
 	self.children[1]:print(out)
 %}
 
-statement -> global_assignment
-global_assignment -> global name_list ['=' expression_list] {%
-	local lhtab = { self.children[2].children[1] }
-	local gathertab = self.children[2].children[2]:print(out,true)
-	for i, child in ipairs(gathertab) do
-		table.insert(lhtab, child.children[2])
-	end
-	for i,v in ipairs(lhtab) do
-		check_localness(out, v.value)
-		set_global(out, v.value)
-		if #self.children[3].children > 0 then
-			local ln = out:line()
-			ln:append "_ENV."
-			v:print(out)
-			if i < #lhtab then
-				ln:append ","
-			end
+@reset function_name
+function_name -> Name {'.' Name} [':' Name] {%
+	local name = self.children[1].value
+	local append_env
+	local was_temp = false
+	if out.scope.__TEMP_variable_enabled then
+		local type = get_hastemp(out, name)
+		if type == "global" then
+			was_temp = true
+			append_env = true
+		elseif type == "local" then
+			was_temp = true
+			append_env = false
 		end
 	end
-		self.children[3]:print(out)
+	if not was_temp then
+		local is_local = check_localness(out, name)
+		if is_local ~= true then
+			append_env = true
+		end
+	end
+	if append_env then
+		out:line():append("_ENV.")
+	end
+	self.children[1]:print(out)
+	self.children[2]:print(out)
+	self.children[3]:print(out)
 %}
 
 @reset assignment
@@ -101,24 +152,44 @@ assignment -> variable_list '=' expression_list {%
 	for i, child in ipairs(gathertab) do
 		table.insert(lhtab, child.children[2])
 	end
+
+	local pop_back = false
+	local name_involved = false
+	local add_local = true
+	local to_set_local = {}
 	for _, var in ipairs(lhtab) do
 		if var.children[1].rule == "Name" then
+			name_involved = true
 			local vname = var.children[1].value
 			local islocal = check_localness(out, vname)
-			print(vname, islocal)
 			if islocal == nil then
-				print("pushback", vname)
-				set_local(out, vname)
-				local ln = out:push_prior()
-				ln:append("local " .. vname)
-				out:pop()
+				table.insert(to_set_local, vname)
+				temp_local(out, vname)
+			elseif islocal == false then
+				pop_back = true
+				add_local = false
+			else
+				pop_back = true
 			end
-			--out:line():append("namehere")
 		end
 	end
+	if pop_back then
+		for _,name in ipairs(to_set_local) do
+			local ln = out:push_prior()
+			ln:append("local " .. name)
+			out:pop()
+		end
+	elseif name_involved and add_local then
+		out:line():append("local")
+	end
+	toggle_temps(out, true)
 	self.children[1]:print(out)
+	toggle_temps(out, false)
+
 	self.children[2]:print(out)
 	self.children[3]:print(out)
+	push_temp_vars(out)
+
 %}
 
 @reset local_assignment
@@ -129,11 +200,38 @@ local_assignment -> local name_list ['=' expression_list] {%
 	for i, child in ipairs(gathertab) do
 		table.insert(lhtab, child.children[2])
 	end
+	local prev_scopes = {}
 	for i,v in ipairs(lhtab) do
-		set_local(out, v.value)
+		--table.insert(prev_scopes, {v.value, check_localness(out, v.value)})
+		temp_local(out, v.value)
 	end
-		self.children[2]:print(out)
-		self.children[3]:print(out)
+	toggle_temps(out, true)
+	self.children[2]:print(out)
+	toggle_temps(out, false)
+	self.children[3]:print(out)
+	push_temp_vars(out)
+%}
+
+statement -> global_assignment
+global_assignment -> global name_list ['=' expression_list] {%
+	local lhtab = { self.children[2].children[1] }
+	local gathertab = self.children[2].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	for i,v in ipairs(lhtab) do
+		temp_global(out, v.value)
+		if #self.children[3].children > 0 then
+			local ln = out:line()
+			ln:append "_ENV."
+			v:print(out)
+			if i < #lhtab then
+				ln:append ","
+			end
+		end
+	end
+	self.children[3]:print(out)
+	push_temp_vars(out)
 %}
 
 @reset for_numeric
@@ -165,10 +263,19 @@ for_in -> for name_list in expression_list do_block {%
 
 @reset function_assignment
 function_assignment -> function function_name function_body {%
-	for _,child in ipairs(self.children) do
-		child:print(out)
+	local fname = self.children[2].children[1].value
+	local is_local = check_localness(out, fname)
+	if is_local == nil then
+		out:line():append "local"
+		temp_local(out, fname)
 	end
-	set_global(out, self.children[2].children[1].value)
+	self.children[1]:print(out)
+	toggle_temps(out, true)
+	self.children[2]:print(out)
+	toggle_temps(out, false)
+	self.children[3]:print(out)
+	push_temp_vars(out)
+
 %}
 
 @reset local_function_assignment
@@ -183,7 +290,9 @@ statement -> global_function_assignment
 global_function_assignment -> global function Name function_body {%
 	for _,child in ipairs(self.children) do
 		if _ == 1 then
-			ln:append("_ENV.")
+		elseif _ == 3 then
+			out:line():append("_ENV.")
+			child:print(out)
 		else
 			child:print(out)
 		end
@@ -249,8 +358,40 @@ augmented_assignment -> variable_list augmented_op expression_list {%
 	
 	local op = self.children[2]:print()
 	local ln = out:line()
+
+	local pop_back = false
+	local name_involved = false
+	local add_local = true
+	local to_set_local = {}
+	for _, var in ipairs(lhtab) do
+		if var.children[1].rule == "Name" then
+			name_involved = true
+			local vname = var.children[1].value
+			local islocal = check_localness(out, vname)
+			if islocal == nil then
+				table.insert(to_set_local, vname)
+				temp_local(out, vname)
+			elseif islocal == false then
+				pop_back = true
+				add_local = false
+			else
+				pop_back = true
+			end
+		end
+	end
+	if pop_back then
+		for _,name in ipairs(to_set_local) do
+			local ln = out:push_prior()
+			ln:append("local " .. name)
+			out:pop()
+		end
+	elseif name_involved and add_local then
+		out:line():append("local")
+	end
 	
+	toggle_temps(out, true)
 	self.children[1]:print(out)
+	toggle_temps(out, false)
 	ln:append("=")
 	
 	for i, var in ipairs(lhtab) do
@@ -267,6 +408,8 @@ augmented_assignment -> variable_list augmented_op expression_list {%
 			ln:append(",")
 		end
 	end
+	
+	push_temp_vars(out)
 %}
 
 augmented_op -> '+=' {% return "+" %}
@@ -305,11 +448,18 @@ statement -> lambda_local_function_assignment
 statement -> lambda_global_function_assignment
 
 lambda_function_assignment -> function_name lambda {% 
-	local ln = out:line()
+	local fname = self.children[1].children[1].value
+	local is_local = check_localness(out, fname)
+	if is_local == nil then
+		out:line():append "local"
+		temp_local(out, fname)
+	end
+	toggle_temps(out, true)
 	self.children[1]:print(out)
-	ln:append "="
+	toggle_temps(out, false)
+	out:line():append "="
 	self.children[2]:print(out)
-	set_global(out, self.children[1].children[1].value)
+	push_temp_vars(out)
 %}
 
 lambda_local_function_assignment -> local Name lambda {% 
