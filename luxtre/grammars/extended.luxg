@@ -17,6 +17,7 @@
 
 @keywords {
 	"let",
+	"global",
 }
 
 
@@ -86,8 +87,6 @@ local function push_temp_vars(out)
 	out.scope.__TEMP_variable_states = {}
 end
 %}
-
-@keywords { "global" }
 
 @reset variable
 
