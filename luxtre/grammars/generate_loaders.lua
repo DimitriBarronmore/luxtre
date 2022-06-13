@@ -14,8 +14,12 @@ local load_func = require(path .. "utils.safeload")
 local deepcopy = require(path .. "utils.deepcopy")
 
 -- local std_grammar = require(path .. "grammars.std")
-local std_grammar = load_grammar(path .. "grammars.extended")
+local std_grammar = load_grammar(path .. "grammars.luxtre_standard")
 
+local unpack = unpack
+if _VERSION > "Lua 5.1" then
+    unpack = table.unpack
+end
 
 -- [ file loading ] --
 
@@ -64,6 +68,7 @@ local function generic_compile(inputstream, grammar)
     local f_ast = ast.earley_extract(res)
     local output = new_output()
     f_ast.tree:print(output)
+    print(output:print())
     return output:print()
 end
 
