@@ -301,7 +301,7 @@ local function make_grammar_function(filename, env, print_out)
     local concat = {}
     local file = io.open(filename)
     if not file then
-        error(("grammar file %s does not exist"):format(filename), 2)
+        error(("file %s does not exist"):format(filename), 2)
     end
     
 ---@diagnostic disable-next-line: need-check-nil

@@ -40,7 +40,11 @@ local function process_input(source, isfile)
     local fixedname = source:gsub("%.([^.\\/]-%.)", "/%1")
     if isfile then
         local concat = {}
-        for line in io.lines(fixedname) do
+        local file = io.open(fixedname, "r")
+        if file == nil then
+            error("file " .. source .. " does not exist", 3)
+        end
+        for line in file:lines() do
             table.insert(concat, line)
         end
         source = table.concat(concat,"\n")
