@@ -3,6 +3,7 @@ local path = (...):gsub("grammars[./\\]read_grammars", "")
 
 
 local newGrammar = require(path .. "parser.grammar")
+local preprocess = require(path .. "parser.preprocess")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
 local ast = require(path .. "parser.ast")
@@ -307,7 +308,8 @@ local function make_grammar_function(filename, env, print_out)
     for line in file:lines() do
         table.insert(concat, line)
     end
-    local inpstream = tokenate.inputstream_from_text(table.concat(concat, "\n"), filename)
+    local ppenv = preprocess(table.concat(concat, "\n"), filename)
+    local inpstream = tokenate.inputstream_from_ppenv(ppenv)
     local tokstream = tokenate.new_tokenstream()
     tokstream:tokenate_stream(inpstream, grammar)
 
