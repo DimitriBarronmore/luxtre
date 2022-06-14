@@ -308,8 +308,13 @@ local function make_grammar_function(filename, env, print_out)
     for line in file:lines() do
         table.insert(concat, line)
     end
-    local ppenv = preprocess(table.concat(concat, "\n"), filename)
-    local inpstream = tokenate.inputstream_from_ppenv(ppenv)
+    -- local ppenv = preprocess(table.concat(concat, "\n"), filename)
+    local fulltxt = table.concat(concat, "\n")
+    local status, res = pcall(preprocess, fulltxt, filename)
+    if status == false then
+        error(res, 0)
+    end
+    local inpstream = tokenate.inputstream_from_ppenv(res)
     local tokstream = tokenate.new_tokenstream()
     tokstream:tokenate_stream(inpstream, grammar)
 
@@ -327,6 +332,17 @@ local function make_grammar_function(filename, env, print_out)
 
     local chunk, err = load_func(compiled, filename, "t", env)
     if err then
+        local _,_,cap = string.find(err, "%]:(%d+):")
+        local count = 0
+        local realline
+        for line in (compiled .. "\n"):gmatch(".-\n") do
+            count = count + 1
+            if tostring(count) == cap then
+                realline = line
+                break
+            end
+        end
+        err = err .. "\noriginal line:\n\t" .. realline:sub(1,-2)
         error(err, 0)
     end
 
