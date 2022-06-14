@@ -26,7 +26,15 @@ local keys = {
 local ops = {
     "->",
     "{%",
-    "%}"
+    "%}",
+    --original
+    '==',
+    '<=',
+    '>=',
+    '~=',
+    '::',
+    '...',
+    '..',
 }
 local rules = {
     {"START", "block <eof>", function(self, out)
@@ -52,48 +60,48 @@ local __repeatable_post_gather = function(self, out, gather)
     end
 
 end
-        ]])
+        ]], 0)
         out:pop()
 
         self.children[1]:print(out)
         ln = out:push_footer()
         ln:append("grammar:_generate_nullable()")
-        ln:append("end")
+        ln:append("end", 0)
         out:pop()
     end},
 
     {"reserve_kws", "'@' keywords '{' reserve_list '}'", function(self, out)
         local ln = out:push_header()
-        ln:append("local __keys = {")
+        ln:append("local __keys = {", self.children[2].position[1])
         self.children[4]:print(out)
-        ln:append("\n}")
-        ln:append("\ngrammar:addKeywords(__keys)")
+        ln:append("}", self.children[5].position[1])
+        ln:append("grammar:addKeywords(__keys)", self.children[2].position[1])
         out:pop()
     end},
 
     {"reserve_kws", "'@' keywords remove '{' reserve_list '}'", function(self, out)
         local ln = out:push_header()
-        ln:append("local __keys = {")
+        ln:append("local __keys = {", self.children[2].position[1])
         self.children[5]:print(out)
-        ln:append("\n}")
-        ln:append("\nfor k,v in ipairs(__keys) do\n\tgrammar._keywords[v] = nil\nend ")
+        ln:append("}", self.children[6].position[1])
+        ln:append("for k,v in ipairs(__keys) do grammar._keywords[v] = nil end ", self.children[2].position[1])
         out:pop()
     end},
 
     {"reserve_ops", "'@' operators '{' reserve_list '}'", function(self, out)
         local ln = out:push_header()
-        ln:append("local __ops = {")
+        ln:append("local __ops = {", self.children[2].position[1])
         self.children[4]:print(out)
-        ln:append("\n}")
-        ln:append("\ngrammar:addOperators(__ops)")
+        ln:append("}", self.children[5].position[1])
+        ln:append("grammar:addOperators(__ops)",self.children[2].position[1])
         out:pop()
     end},
 
     {"reserve_ops", "'@' operators remove '{' reserve_list '}'", function(self, out)
         local ln = out:push_header()
-        ln:append("local __ops = {")
+        ln:append("local __ops = {", self.children[3].position[1])
         self.children[5]:print(out)
-        ln:append("\n}")
+        ln:append("}", self.children[6].position[1])
         ln:append([[
 
 local operators = grammar._operators
@@ -105,13 +113,13 @@ for _,v in ipairs(__ops) do
         end
     end
 end
-]])
+]], self.children[2].position[1])
         out:pop()
     end},
 
     {"reserve_list", "reserve_list ',' reserve_item", function(self, out) self.children[1]:print(out); self.children[3]:print(out) end},
     {"reserve_list", "reserve_item"},
-    {"reserve_item", "String", function(self, out) out:line():append("\n\t" .. self.children[1].value .. ",") end},
+    {"reserve_item", "String", function(self, out) out:line():append("" .. self.children[1].value .. ",", self.children[1].position[1]) end},
     {"reserve_item", ""},
 
     {"block", "block statement", function(self, out) 
@@ -131,8 +139,8 @@ end
 
     {"reset_prod", "'@' reset Name", function(self, out)
         local ln = out:push_header()
-        ln:append("grammar._list[\"" .. self.children[3].value .. "\"] = nil")
-        ln:append("grammar._used[\"" .. self.children[3].value .. "\"] = nil")
+        ln:append("grammar._list[\"" .. self.children[3].value .. "\"] = nil", self.children[3].position[1])
+        ln:append("grammar._used[\"" .. self.children[3].value .. "\"] = nil", self.children[3].position[1])
         out:pop()
     end},
 
@@ -147,7 +155,7 @@ do
         res(grammar)
     end
 end
-]]):format(self.children[3].value:gsub("^(['\"])%$", "__rootpath .. %1.")))
+]]):format(self.children[3].value:gsub("^(['\"])%$", "__rootpath .. %1.")), self.children[3].position[1])
         out:pop()
     end},
 
@@ -155,23 +163,24 @@ end
         local name = self.children[1].value
         out._tmp_curr_rulename = name
         self.children[4]:print(out)
-
+        out._tmp_curr_position = self.children[1].position[1]
         local rule_list = self.children[3]:print(out)
         for _,v in ipairs(rule_list) do
             local ln = out:push_prior()
             if v == [[""]] or v == [['']] then
-                ln:append( ('grammar:addRule("%s", ""'):format(name) )
+                ln:append( ('grammar:addRule("%s", ""'):format(name), self.children[1].position[1])
             else
-                ln:append( ('grammar:addRule("%s", [=[%s]=]'):format(name, v) )
+                ln:append( ('grammar:addRule("%s", [=[%s]=]'):format(name, v), self.children[1].position[1] )
             end
             if out._tmp_caught_functext then
                 ln:append((", %s_post"):format(name))
             end
-            ln:append(")")
+            ln:append(")", self.children[1].position[1])
             out:pop()
         end
         out._tmp_curr_rulename = nil
         out._tmp_caught_functext = nil
+        out._tmp_curr_position = nil
     end},
 
     {"catch_functext", "functext", function(self, out)
@@ -215,9 +224,9 @@ end
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
                 if v == [[""]] or v == [['']] then
-                    ln:append( ('grammar:addRule("%s", "")'):format(name) )
+                    ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
                 else
-                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v), out._tmp_curr_position )
                 end
                 out:pop()
             end
@@ -234,14 +243,14 @@ end
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
                 if v == [[""]] or v == [['']] then
-                    ln:append( ('grammar:addRule("%s", "")'):format(name) )
+                    ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
                 else
-                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v), out._tmp_curr_position )
                 end
                 out:pop()
             end
             local ln = out:push_prior()
-            ln:append( ('grammar:addRule("%s", "")'):format(name) )
+            ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
             out:pop()
         end
         return name
@@ -256,16 +265,16 @@ end
             for _,v in ipairs(tab) do
                 local ln = out:push_prior()
                 if v == [[""]] or v == [['']] then
-                    ln:append( ('grammar:addRule("%s", "")'):format(name) )
+                    ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
                 else
-                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v) )
+                    ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v), out._tmp_curr_position )
                 end
                 out:pop()
             end
             local ln = out:push_prior()
-            ln:append( ('grammar:addRule("%s_lhs", "%s_lhs %s", __repeatable_post_gather)'):format(name, name, name) )
+            ln:append( ('grammar:addRule("%s_lhs", "%s_lhs %s", __repeatable_post_gather)'):format(name, name, name), out._tmp_curr_position )
             local ln = out:push_prior()
-            ln:append( ('grammar:addRule("%s_lhs", "", __repeatable_post_base)'):format(name) )
+            ln:append( ('grammar:addRule("%s_lhs", "", __repeatable_post_base)'):format(name), out._tmp_curr_position )
             out:pop()
             out:pop()
         end
@@ -276,17 +285,25 @@ end
     {"rule_item", "String", function(self, out) return self.children[1].value end},
     {"rule_item", "Keyword", function(self, out) return self.children[1].value end},
 
-    {"functext", "'{%' grab_any '%}'", function(self, out) out:line():append(self.children[2]:print(out) or "") end },
+    {"functext", "'{%' grab_any '%}'", function(self, out)
+        self.children[2]:print(out)
+
+    end },
 
     {"grab_any", ""},
-    {"grab_any", "grab_any any", function(self, out)
-			return (self.children[1]:print(out) or "") .. (self.children[2].children[1]._before or "") .. self.children[2].children[1].value
-	end,},
+    {"grab_any", "grab_any any"},
     {"any", "Name"},
     {"any", "Number"},
     {"any", "String"},
     {"any", "Symbol"},
-    {"any", "Keyword"}
+    {"any", "Keyword"},
+    {"any", "'=='"},
+    {"any", "'<='"},
+    {"any", "'>='"},
+    {"any", "'~='"},
+    {"any", "'::'"},
+    {"any", "'...'"},
+    {"any", "'..'"}
 }
 
 
@@ -296,6 +313,22 @@ grammar:addKeywords(keys)
 grammar:addOperators(ops)
 grammar:addRules(rules)
 grammar :_generate_nullable()
+
+local function wrap_errors(linemap, outputchunk)
+    local check_err = function(...)
+        local status = { pcall(outputchunk, ...) }
+        if status[1] == false then
+            local err = status[2]
+            local _,_,cap = string.find(err, "%]:(%d+):")
+            local realline = linemap[tonumber(cap)] or cap
+            err = err:gsub("%]:%d+:", ("]:%s:"):format(realline))
+            error(err, 0)
+        else
+            return unpack(status, 2)
+        end
+    end
+    return check_err
+end
 
 local function make_grammar_function(filename, env, print_out)
     local concat = {}
@@ -325,28 +358,21 @@ local function make_grammar_function(filename, env, print_out)
     local fast = ast.earley_extract(res)
     local output = new_output()
     fast.tree:print(output)
-    local compiled = output:print()
+    local compiled, linemap = output:print()
     if print_out then
+        print("----" .. filename .. "----")
         print(compiled)
     end
 
     local chunk, err = load_func(compiled, filename, "t", env)
     if err then
         local _,_,cap = string.find(err, "%]:(%d+):")
-        local count = 0
-        local realline
-        for line in (compiled .. "\n"):gmatch(".-\n") do
-            count = count + 1
-            if tostring(count) == cap then
-                realline = line
-                break
-            end
-        end
-        err = err .. "\noriginal line:\n\t" .. realline:sub(1,-2)
+        local realline = linemap[tonumber(cap)] or cap
+        err = err:gsub("%]:%d+:", ("]:%s:"):format(realline))
         error(err, 0)
     end
 
-    return chunk()
+    return wrap_errors(linemap, chunk())
 end
 
 module.loaded = {}
