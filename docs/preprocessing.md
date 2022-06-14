@@ -4,7 +4,8 @@ Before the file is compiled, lines which begin with '#' are run in the preproces
 The preprocessor is not yet complete, but in the current state it can be used to determine what is written to the final file as well as define macros.
 
 ## Constant Variables
-- filename: the path to the current file, or an empty string if the code came from loading a string.
+- filename: the full path of the current file, or an empty string if the code came from loading a string.
+    - for example:  `print(filename) --> folder.example.lux`
 
 ## Conditional Lines
 
