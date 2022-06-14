@@ -240,9 +240,12 @@ local function setup_sandbox(name)
     sandbox._write_lines = {}
     sandbox._linemap = {}
     sandbox.__extra_grammars = {}
+    sandbox.__special_positions = {}
 
     sandbox._write = function(num)
-        table.insert(sandbox._output, sandbox._write_lines[num])
+        local line = sandbox._write_lines[num]
+        line = change_macros(sandbox, line, sandbox.__count, name)
+        table.insert(sandbox._output, line)
         sandbox._linemap[#sandbox._output] = num
     end
 
@@ -257,7 +260,9 @@ local function setup_sandbox(name)
         ---@diagnostic disable-next-line: need-check-nil
         for line in file:lines() do
             count = count + 1
-            table.insert(sandbox.__lines, count, line)
+            local position = sandbox.__count + count
+            table.insert(sandbox.__lines, position, line)
+            sandbox.__special_positions[position] = tostring(sandbox.__count - 1) .. (" ( %s:%s: )"):format(filename, count)
         end
     end
 
@@ -300,36 +305,36 @@ end
 local function check_conditional(line, hanging_conditional)
     local s = 1
     repeat
-    if not hanging_conditional then
+        local had_result = false
         local r1 = {line:find("then", s)}
         local r2 = {line:find("else", s)}
         local r3 = {line:find("do", s)}
         local r4 = {line:find("repeat", s)}
+        local r5 = {line:find("function%s+[%d%a_%.:]-%s-%b()", s)}
         local result = (r1[1] and r1)
                     or (r2[1] and r2)
                     or (r3[1] and r3)
                     or (r4[1] and r4)
+                    or (r5[1] and r5)
                     or nil
         if result then
-            hanging_conditional = true
+            hanging_conditional = hanging_conditional + 1
             s = result[2]
-        else
-            s = nil
+            had_result = true
         end
-    else
-        local s1,e1 = line:find("end", s)
-        local s2,e2 = line:find("until", s)
-        if s1 then
-            s = e1
-            hanging_conditional = false
-        elseif s2 then
-            s = e2
-            hanging_conditional = false
-        else
-            s = nil
+
+        local r1 = {line:find("end", s)}
+        local r2 = {line:find("until", s)}
+        local result = (r1[1] and r1)
+                    or (r2[1] and r2)
+                    or nil
+        if result then
+            hanging_conditional = hanging_conditional - 1
+            s = result[2]
+            had_result = true
         end
-    end
-    until s == nil
+
+    until had_result == false
     return hanging_conditional
 end
 
@@ -337,9 +342,10 @@ function export.compile_lines(text, name, path)
 	name = name or "<lux input>"
 
     local ppenv = setup_sandbox(name)
-    local count = 0
+    ppenv.__count = 1
+    local positions_count = 0
     local in_string, eqs = false, ""
-    local hanging_conditional = false
+    local hanging_conditional = 0
     local direc_lines = {}
     
     ppenv.__lines = {}
@@ -347,16 +353,19 @@ function export.compile_lines(text, name, path)
         table.insert(ppenv.__lines, line)
     end
 
-    --for _, line in ipairs(lines) do
-    while #ppenv.__lines > 0 do
-        local line = ppenv.__lines[1]
-        table.remove(ppenv.__lines, 1)
+    while ppenv.__count <= #ppenv.__lines do
+        local line = ppenv.__lines[ppenv.__count]
+        local special_count
+        if ppenv.__special_positions[ppenv.__count] then
+            special_count = ppenv.__special_positions[ppenv.__count]
+        else
+            positions_count = positions_count + 1
+        end
 
         line = line:gsub("\n", "")
-        count = count + 1
-        if count == 1 and line:match("^#!") then
+        if ppenv.__count == 1 and line:match("^#!") then
             table.insert(ppenv._output, "")
-            ppenv._linemap[#ppenv._output] = count
+            ppenv._linemap[#ppenv._output] = special_count or positions_count
         elseif line:match("^%s*#")
           and not in_string then -- DIRECTIVES  
 
@@ -369,27 +378,24 @@ function export.compile_lines(text, name, path)
             line = line:gsub("^%s*#%s*define%s+([^%s()]+)%s*$", "macros[\"%1\"] = ''")
             line = line:gsub("^%s*#%s*define%s+([^%s]+%b())%s*$", "macros[\"%1\"] = ''")
 
-            -- print(line)
-
             -- if-elseif-else chain handling
             hanging_conditional = check_conditional(line, hanging_conditional)
             local stripped = line:gsub("^%s*#", "")
             table.insert(direc_lines, stripped)
             table.insert(ppenv._output, "")
-            ppenv._linemap[#ppenv._output] = count
+            ppenv._linemap[#ppenv._output] = special_count or positions_count
 
         else --normal lines
             
             -- write blocks
-            if hanging_conditional then
-                line = change_macros(ppenv, line, count, name)
-                ppenv._write_lines[count] = line
-                table.insert(direc_lines,("_write(%d)"):format(count))
+            if hanging_conditional > 0 then
+                ppenv._write_lines[ppenv.__count] = line
+                table.insert(direc_lines,("_write(%d)"):format(ppenv.__count))
                 table.insert(ppenv._output, "")
-                ppenv._linemap[#ppenv._output] = count
+                ppenv._linemap[#ppenv._output] = special_count or positions_count
             else
             	if #direc_lines > 0 then -- execution
-					local chunk = string.rep("\n", count-1-#direc_lines) .. table.concat(direc_lines, "\n")
+					local chunk = string.rep("\n", ppenv.__count-1-#direc_lines) .. table.concat(direc_lines, "\n")
 					direc_lines = {}
                     local func, err = load_func(chunk, name .. " (preprocessor)", "t", ppenv)
                     if err then
@@ -399,17 +405,15 @@ function export.compile_lines(text, name, path)
 
 				end
 
-                line = change_macros(ppenv, line, count, name)
+                line = change_macros(ppenv, line, ppenv.__count, name)
                 in_string, eqs = multiline_status(line, in_string, eqs)
                 table.insert(ppenv._output, line)
-                ppenv._linemap[#ppenv._output] = count
+                ppenv._linemap[#ppenv._output] = special_count or positions_count
             end
         end
+        ppenv.__count = ppenv.__count + 1
     end
-    -- print(table.concat(ppenv._output, "\n"))
     return ppenv
-
-    -- return table.concat(direc_lines), write_lines
 end
 
 return export.compile_lines
