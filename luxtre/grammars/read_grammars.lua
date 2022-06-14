@@ -21,7 +21,8 @@ local keys = {
     "operators",
     "reset",
     "remove",
-    "import"
+    "import",
+    "eof"
 }
 local ops = {
     "->",
@@ -284,6 +285,7 @@ end
     {"rule_item", "Name", function(self, out) return self.children[1].value end},
     {"rule_item", "String", function(self, out) return self.children[1].value end},
     {"rule_item", "Keyword", function(self, out) return self.children[1].value end},
+    {"rule_item", "'<' eof '>'", function(self, out) return "<eof>" end},
 
     {"functext", "'{%' grab_any '%}'", function(self, out)
         self.children[2]:print(out)
