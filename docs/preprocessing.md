@@ -79,6 +79,29 @@ print("add_bark(woof)") --> 'print("barkwoofbark")'
 print(blank)            --> 'print()'
 ```
 
+## Including Headers
+You can include a header file using the `include(filename)` function. This takes the input of the file "`filename`.luxh" and inserts it into the current file beginning with the next line.
+```lua
+-- [[header.luxh]]
+# print "foobar"
+
+-- [[ some other file ]]
+# print "before"
+# include "header"
+# print "after"
+--[[
+   >> # print "before"
+   >> # print "foobar"
+   >> # print "after"
+--]]
+
+-- note that you can use the filename variable to load adjacent grammars.
+-- assuming the current file is "folder/foobar.lux", this imports folder/header.luxh
+# local path = filename:gsub("foobar", "")
+# import(path .. "header")
+
+```
+
 ## Extending the Current Grammar
 The `add_grammar(filename)` function allows you to extend the current file's syntax with the given `.luxg` grammar definition. Grammars added this way are loaded in order.
 ```lua

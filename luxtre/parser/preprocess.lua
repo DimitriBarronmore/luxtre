@@ -246,6 +246,21 @@ local function setup_sandbox(name)
         sandbox._linemap[#sandbox._output] = num
     end
 
+    sandbox.include = function(filename)
+        local filename = filename:gsub("%.", "/")
+        filename = filename .. ".luxh"
+        local file = io.open(filename, "r")
+        if file == nil then
+            error("file " .. filename .. " does not exist")
+        end
+        local count = 0
+        ---@diagnostic disable-next-line: need-check-nil
+        for line in file:lines() do
+            count = count + 1
+            table.insert(sandbox.__lines, count, line)
+        end
+    end
+
     sandbox.add_grammar = function(grammar)
         if type(grammar) ~= "string" then
             error("given filepath must be a string",2)
@@ -318,7 +333,7 @@ local function check_conditional(line, hanging_conditional)
     return hanging_conditional
 end
 
-function export.compile_lines(text, name)
+function export.compile_lines(text, name, path)
 	name = name or "<lux input>"
 
     local ppenv = setup_sandbox(name)
@@ -327,7 +342,16 @@ function export.compile_lines(text, name)
     local hanging_conditional = false
     local direc_lines = {}
     
+    ppenv.__lines = {}
     for line in (text .. "\n"):gmatch(".-\n") do
+        table.insert(ppenv.__lines, line)
+    end
+
+    --for _, line in ipairs(lines) do
+    while #ppenv.__lines > 0 do
+        local line = ppenv.__lines[1]
+        table.remove(ppenv.__lines, 1)
+
         line = line:gsub("\n", "")
         count = count + 1
         if count == 1 and line:match("^#!") then
@@ -382,8 +406,8 @@ function export.compile_lines(text, name)
             end
         end
     end
+    -- print(table.concat(ppenv._output, "\n"))
     return ppenv
-    -- print(table.concat(ppenv._output, "-\n"))
 
     -- return table.concat(direc_lines), write_lines
 end
