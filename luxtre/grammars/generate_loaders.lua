@@ -76,23 +76,14 @@ local function generic_compile(inputstream, grammar)
     return output:print()
 end
 
-local function wrap_errors(output, outputchunk) -- change later
+local function wrap_errors(linemap, outputchunk) -- change later
     local check_err = function(...)
         local status = { pcall(outputchunk, ...) }
         if status[1] == false then
             local err = status[2]
-            --print("ERROR")
             local _,_,cap = string.find(err, "%]:(%d+):")
-            local count = 0
-            local realline
-            for line in (output .. "\n"):gmatch(".-\n") do
-                count = count + 1
-                if tostring(count) == cap then
-                    realline = line
-                    break
-                end
-            end
-            err = err .. "\noriginal line:\n\t" .. realline:sub(1,-2)
+            local realline = linemap[tonumber(cap)] or cap
+            err = err:gsub("%]:%d+:", ("]:%s:"):format(realline))
             error(err, 0)
         else
             return unpack(status, 2)
@@ -110,13 +101,13 @@ local function fix_filename(filename, filetype)
 end
 
 
-local function load_chunk(compiled_text, filename, env)
+local function load_chunk(compiled_text, linemap, filename, env)
     env = env or _G
     local chunk, err = load_func(compiled_text, filename, "t", env)
     if err then
         error(err, 0)
     end
-    local safe_chunk = wrap_errors(compiled_text, chunk)
+    local safe_chunk = wrap_errors(linemap, chunk)
     return safe_chunk
 end
 
@@ -149,8 +140,8 @@ local function create_loaders(filetype, grammars)
         end
 
         -- local inputstream = create_inpstream(filename)
-        local compiled_text = generic_compile(inpstream, grammar)
-        local chunk = load_chunk(compiled_text, filename, env)
+        local compiled_text, linemap = generic_compile(inpstream, grammar)
+        local chunk = load_chunk(compiled_text, linemap, filename, env)
         return chunk
     end
 
@@ -174,8 +165,8 @@ local function create_loaders(filetype, grammars)
             appg(grammar)
         end
 
-        local compiled_text = generic_compile(inpstream, grammar)
-        local chunk = load_chunk(compiled_text, str, env)
+        local compiled_text, linemap = generic_compile(inpstream, grammar)
+        local chunk = load_chunk(compiled_text, linemap, str, env)
         return chunk
     end
 
@@ -188,7 +179,8 @@ local function create_loaders(filetype, grammars)
     end
 
     loaders.compile_file = function(filename, outputname)
-        outputname = outputname or filename .. ".lua"
+        local outputname = (outputname or filename):gsub("%.", "/")
+        outputname = outputname .. ".lua"
         local adjusted_filename = fix_filename(filename, filetype)
         local grammar = create_grammar(grammars)
 
