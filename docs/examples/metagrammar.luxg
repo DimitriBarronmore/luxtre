@@ -1,0 +1,285 @@
+@keywords {
+    "keywords",
+    "operators",
+    "reset",
+    "remove",
+    "import",
+    "eof",
+    }
+@operators {
+    "->", 
+    "{%", 
+    "%}", 
+    '==',
+    '<=',
+    '>=',
+    '~=',
+    '::',
+    '...',
+    '..'
+    }
+
+START -> block <eof> {% 
+    local ln = out:push_header()
+    ln:append("return function( grammar )")
+    ln:append([[
+local __repeatable_post_base = function(self, out)
+    return { }
+end
+local __repeatable_post_gather = function(self, out, gather)
+    local tab = self.children[1]:print(out, true)
+    local val = self.children[2]
+
+    table.insert(tab, val)
+    if gather then
+        return tab
+    else
+        for _, child in ipairs(tab) do
+            child:print(out)
+        end
+    end
+end
+    ]], 0)
+    out:pop()
+
+    self.children[1]:print(out)
+    ln = out:push_footer()
+    ln:append("grammar:_generate_nullable()")
+    ln:append("end", 0)
+    out:pop()
+%}
+
+reserve_kws -> '@' keywords '{' reserve_list '}' {% 
+    local ln = out:push_header()
+    ln:append("local __keys = {", self.children[2].position[1])
+    self.children[4]:print(out)
+    ln:append("}", self.children[5].position[1])
+    ln:append("grammar:addKeywords(__keys)", self.children[2].position[1])
+    out:pop()
+%}
+
+reserve_kws -> '@' keywords remove '{' reserve_list '}' {% 
+    local ln = out:push_header()
+    ln:append("local __keys = {", self.children[2].position[1])
+    self.children[5]:print(out)
+    ln:append("}", self.children[6].position[1])
+    ln:append("for k,v in ipairs(__keys) do grammar._keywords[v] = nil end ", self.children[2].position[1])
+    out:pop()
+%}
+
+reserve_ops -> '@' operators '{' reserve_list '}' {% 
+    local ln = out:push_header()
+    ln:append("local __ops = {", self.children[2].position[1])
+    self.children[4]:print(out)
+    ln:append("}", self.children[5].position[1])
+    ln:append("grammar:addOperators(__ops)",self.children[2].position[1])
+    out:pop()
+%}
+
+reserve_ops -> '@' operators remove '{' reserve_list '}' {% 
+    local ln = out:push_header()
+    ln:append("local __ops = {", self.children[3].position[1])
+    self.children[5]:print(out)
+    ln:append("}", self.children[6].position[1])
+    ln:append([[
+local operators = grammar._operators
+for _,v in ipairs(__ops) do
+    for i = #operators, 1, -1 do
+        local op = operators[i]
+        if op == v then
+            table.remove(operators, i)
+        end
+    end
+end
+]], self.children[2].position[1])
+    out:pop()
+%}
+
+reserve_list -> reserve_list ',' reserve_item {%  self.children[1]:print(out); self.children[3]:print(out) %}
+reserve_list -> reserve_item
+reserve_item -> String {%  out:line():append("" .. self.children[1].value .. ",", self.children[1].position[1]) %}
+reserve_item -> 
+
+block -> block statement {%  
+    self.children[1]:print(out)
+    out:flush()
+    self.children[2]:print(out)
+%}
+block -> 
+
+statement -> ""
+    | functext
+    | ruledef
+    | reset_prod
+    | reserve_kws
+    | reserve_ops
+    | import_grammar
+
+reset_prod -> '@' reset Name {% 
+    local ln = out:push_header()
+    ln:append("grammar._list[\"" .. self.children[3].value .. "\"] = nil", self.children[3].position[1])
+    ln:append("grammar._used[\"" .. self.children[3].value .. "\"] = nil", self.children[3].position[1])
+    out:pop()
+%}
+
+import_grammar -> '@' import String {% 
+    local ln = out:push_header()
+    ln:append(([[
+do
+    local status, res = pcall(__load_grammar, %s)
+    if status == false then
+        error("failed import in " .. __filepath .. "\n\t" .. res, 2)
+    else
+        res(grammar)
+    end
+end
+]]):format(self.children[3].value:gsub("^(['\"])%$", "__rootpath .. %1.")), self.children[3].position[1])
+    out:pop()
+%}
+
+ruledef -> Name '->' rule_list catch_functext {% 
+    local name = self.children[1].value
+    out._tmp_curr_rulename = name
+    self.children[4]:print(out)
+    out._tmp_curr_position = self.children[1].position[1]
+    local rule_list = self.children[3]:print(out)
+    for _,v in ipairs(rule_list) do
+        local ln = out:push_prior()
+        if v == [[""]] or v == [['']] then
+            ln:append( ('grammar:addRule("%s", ""'):format(name), self.children[1].position[1])
+        else
+            ln:append( ('grammar:addRule("%s", [=[%s]=]'):format(name, v), self.children[1].position[1] )
+        end
+        if out._tmp_caught_functext then
+            ln:append((", %s_post"):format(name))
+        end
+        ln:append(")", self.children[1].position[1])
+        out:pop()
+    end
+    out._tmp_curr_rulename = nil
+    out._tmp_caught_functext = nil
+    out._tmp_curr_position = nil
+%}
+
+catch_functext -> functext {% 
+    out._tmp_caught_functext = true
+    local name = out._tmp_curr_rulename
+    local ln = out:push_prior()
+    ln:append( ("local %s_post = function(self, out)"):format(name) )
+    self.children[1]:print(out)
+    ln:append(" end")
+    out:pop()
+%}
+catch_functext -> ""
+
+rule_list -> rule_pattern {% 
+    return { table.concat(self.children[1]:print(out), " ") }
+%}
+rule_list -> rule_list '|' rule_list {% 
+    local tab = self.children[1]:print(out)
+    local tab2 = self.children[3]:print(out)
+    for _,v in ipairs(tab2) do
+        table.insert(tab, v)
+    end
+    return tab
+%}
+
+rule_pattern -> rule_pattern rule_item {% 
+    local tab = self.children[1]:print(out)
+    table.insert(tab, self.children[2]:print(out))
+    return tab
+%}
+rule_pattern ->  "" {%  return {} %}
+
+
+rule_item -> '(' rule_list ')' {% 
+    local tab = self.children[2]:print(out)
+    local name = ("(" .. table.concat(tab, "|") .. ")"):gsub(" ", "_")
+    if not out.data.__used_ebnf then out.data.__used_ebnf = {} end
+    if not out.data.__used_ebnf[name] then
+        out.data.__used_ebnf[name] = true
+        for _,v in ipairs(tab) do
+            local ln = out:push_prior()
+            if v == [[""]] or v == [['']] then
+                ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
+            else
+                ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v), out._tmp_curr_position )
+            end
+            out:pop()
+        end
+    end
+    return name
+%}
+
+rule_item -> '[' rule_list ']' {% 
+    local tab = self.children[2]:print(out)
+    local name = ("[" .. table.concat(tab, "|") .. "]"):gsub(" ", "_")
+    if not out.data.__used_ebnf then out.data.__used_ebnf = {} end
+    if not out.data.__used_ebnf[name] then
+        out.data.__used_ebnf[name] = true
+        for _,v in ipairs(tab) do
+            local ln = out:push_prior()
+            if v == [[""]] or v == [['']] then
+                ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
+            else
+                ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v), out._tmp_curr_position )
+            end
+            out:pop()
+        end
+        local ln = out:push_prior()
+        ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
+        out:pop()
+    end
+    return name
+%}
+
+rule_item -> '{' rule_list '}' {% 
+    local tab = self.children[2]:print(out)
+    local name = ("{" .. table.concat(tab, "|") .. "}"):gsub(" ", "_")
+    if not out.data.__used_ebnf then out.data.__used_ebnf = {} end
+    if not out.data.__used_ebnf[name] then
+        out.data.__used_ebnf[name] = true
+        for _,v in ipairs(tab) do
+            local ln = out:push_prior()
+            if v == [[""]] or v == [['']] then
+                ln:append( ('grammar:addRule("%s", "")'):format(name), out._tmp_curr_position )
+            else
+                ln:append( ('grammar:addRule("%s", [=[%s]=])'):format(name, v), out._tmp_curr_position )
+            end
+            out:pop()
+        end
+        local ln = out:push_prior()
+        ln:append( ('grammar:addRule("%s_lhs", "%s_lhs %s", __repeatable_post_gather)'):format(name, name, name), out._tmp_curr_position )
+        local ln = out:push_prior()
+        ln:append( ('grammar:addRule("%s_lhs", "", __repeatable_post_base)'):format(name), out._tmp_curr_position )
+        out:pop()
+        out:pop()
+    end
+    return name .. "_lhs"
+%}
+
+rule_item -> Name 
+    | String
+    | Keyword {%  return self.children[1].value %}
+
+rule_item -> '<' eof '>' {% return "<eof>" %}
+
+functext -> '{%' grab_any '%}' {% 
+    self.children[2]:print(out)
+%}
+
+grab_any -> ""
+    | grab_any any
+
+any -> Name
+    | Number
+    | String
+    | Symbol
+    | Keyword
+    | '=='
+    | '<='
+    | '>='
+    | '~='
+    | '::'
+    | '...'
+    | '..'
