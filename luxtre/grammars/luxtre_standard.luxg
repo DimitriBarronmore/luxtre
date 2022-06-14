@@ -420,7 +420,7 @@ lambda_global_function_assignment -> global Name lambda {%
 	set_global(out, self.children[2].value)
 %}
 
-lambda ->  ['(' [paramlist] ')' ] ('->' | '=>') statement {%
+lambda ->  ['(' [paramlist] ')' ] ('->' | '=>') (statement | return_statement | expression) {%
 	out.scope:push()
 	local params = self.children[1].children[2].children
 	local arrow_type = self.children[2].children[1].value
@@ -437,6 +437,9 @@ lambda ->  ['(' [paramlist] ')' ] ('->' | '=>') statement {%
 		self.children[1].children[2]:print(out)
 	end
 	ln:append ")"
+	if self.children[3].children[1].rule == "expression" then
+		ln:append "return"
+	end
 	self.children[3]:print(out)
 	ln = out:line()
 	ln:append "end"
