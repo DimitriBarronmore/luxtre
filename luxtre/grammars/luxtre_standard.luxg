@@ -11,6 +11,7 @@
     '^=',
 	'&=',
 	'|=',
+	'..=',
 --    '++',
 	'!=',
 }
@@ -360,6 +361,7 @@ augmented_op -> '%=' {% return "%" %}
 augmented_op -> '^=' {% return "^" %}
 augmented_op -> '&=' {% return "and" %}
 augmented_op -> '|=' {% return "or" %}
+augmented_op -> '..=' {% return ".." %}
 
 
 --[[ Table Constructors ]]--
