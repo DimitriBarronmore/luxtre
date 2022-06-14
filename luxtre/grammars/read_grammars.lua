@@ -1,6 +1,10 @@
 local path = (...):gsub("grammars[./\\]read_grammars", "")
 -- local create_loaders = require(path .. "grammars.generate_loaders")
 
+local unpack = unpack
+if _VERSION > "Lua 5.1" then
+    unpack = table.unpack
+end
 
 local newGrammar = require(path .. "parser.grammar")
 local preprocess = require(path .. "parser.preprocess")

@@ -11,12 +11,12 @@
     include require loader for .lux file extension
 --]]
 
-local path = (...):gsub("loader", "")
+local path = (...):gsub("init", "")
 local create_loaders = require(path .. "grammars.generate_loaders")
 
 local module = {}
 
-local default_loaders = create_loaders()
+local default_loaders = create_loaders( ".lux", { path .. "grammars.luxtre_standard" })
 
 module.loadfile = default_loaders.loadfile
 module.dofile = default_loaders.dofile
@@ -24,5 +24,7 @@ module.loadstring = default_loaders.loadstring
 module.dostring = default_loaders.dostring
 module.compile_file = default_loaders.compile_file
 module.register = default_loaders.register
+
+module.create_loaders = create_loaders
 
 return module

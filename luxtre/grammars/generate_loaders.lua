@@ -125,8 +125,21 @@ end
 ---A table of grammars to apply
 -- Take a list of grammars and make a set of load funcs for them
 local function create_loaders(filetype, grammars)
-    filetype = filetype or ".lux"
-    grammars = grammars or { std_grammar }
+    if type(filetype) ~= "string" then
+        error("invalid first argument; expected string",2)
+    end
+    if type(grammars) ~= "table" then
+        error("invalid second argument; expected table",2)
+    end
+    -- filetype = filetype or ".lux"
+    -- grammars = grammars or { path .. "grammars.luxtre_standard" }
+    for i,v in ipairs(grammars) do
+        local status, res = pcall(load_grammar, v)
+        if status == false then
+            error(res, 2)
+        end
+        grammars[i] = res
+    end
     local loaders = {}
 
     loaders.loadfile = function(filename, env)
@@ -180,6 +193,7 @@ local function create_loaders(filetype, grammars)
 
     loaders.compile_file = function(filename, outputname)
         local outputname = (outputname or filename):gsub("%.", "/")
+        local filename = filename:gsub("%.", "/")
         outputname = outputname .. ".lua"
         local adjusted_filename = fix_filename(filename, filetype)
         local grammar = create_grammar(grammars)
