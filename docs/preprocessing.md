@@ -1,15 +1,13 @@
 # Preprocessing
 Before the file is compiled, lines which begin with '#' are run in the preprocessor (ignoring trailing whitespace, shebangs, and multi-line strings/comments). The preprocessor executes these lines top-to-bottom as lua code.
 
-The preprocessor is not yet complete, but in the current state it can be used to determine what is written to the final file as well as define macros.
-
 ## Constant Variables
 - filename: the full path of the current file, or an empty string if the code came from loading a string.
     - for example:  `print(filename) --> folder.example.lux`
 
 ## Conditional Lines
 
-Within an unclosed preprocessor block (`do`, `if`, `while`, `repeat`, or `for`), input lines will only be written to the output dependent on the surrounding preprocessor code. 
+Within an unclosed preprocessor block (`do`, `if`, `while`, `repeat`, `for`, or inside function definitions), input lines will only be written to the output dependent on the surrounding preprocessor code. 
 For example:
 ```lua
 # if hello then
@@ -97,9 +95,9 @@ You can include a header file using the `include(filename)` function. This takes
 --]]
 
 -- note that you can use the filename variable to load adjacent grammars.
--- assuming the current file is "folder/foobar.lux", this imports folder/header.luxh
+-- assuming the current file is "folder/foobar.lux", this includes folder/header.luxh
 # local path = filename:gsub("foobar", "")
-# import(path .. "header")
+# include(path .. "header")
 
 ```
 
