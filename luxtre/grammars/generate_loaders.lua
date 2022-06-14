@@ -72,7 +72,7 @@ local function generic_compile(inputstream, grammar)
     local f_ast = ast.earley_extract(res)
     local output = new_output()
     f_ast.tree:print(output)
-    print(output:print())
+    --print(output:print())
     return output:print()
 end
 
