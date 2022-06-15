@@ -444,6 +444,11 @@ lambda ->  ['(' [paramlist] ')' ] ('->' | '=>') ((['('] statement [')']) | retur
 	elseif self.children[3].children[1].rule == "(['(']_statement_[')'])" then
 		self.children[3] = self.children[3].children[1].children[2]
 	end
+	print(self.children[3].children[1].rule)
+	if self.children[3].children[1].rule == "do_block" then
+		self.children[3] = self.children[3].children[1].children[2]
+	end
+
 	self.children[3]:print(out)
 	ln = out:line()
 	ln:append "end"
