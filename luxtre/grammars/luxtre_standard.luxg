@@ -204,6 +204,11 @@ for_in -> for name_list in expression_list do_block {%
 
 @reset function_assignment
 function_assignment -> function function_name function_body {%
+	out.scope:push()
+	if #self.children[2].children[3].children > 0 then
+		set_local(out, "self")
+	end
+
 	local fname = self.children[2].children[1].value
 	local is_local = check_localness(out, fname)
 	if is_local == nil then
@@ -216,7 +221,7 @@ function_assignment -> function function_name function_body {%
 	toggle_temps(out, false)
 	self.children[3]:print(out)
 	push_temp_vars(out)
-
+	out.scope:pop()
 %}
 
 @reset local_function_assignment
@@ -431,6 +436,7 @@ lambda ->  ['(' [paramlist] ')' ] ('->' | '=>') ((['('] statement [')']) | retur
 	ln:append "function("
 	if arrow_type == "=>" then
 		ln:append "self"
+		set_local(out, "self")
 	end
 	if #params > 0 then
 		if arrow_type == "=>" then
