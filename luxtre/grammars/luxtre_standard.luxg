@@ -212,8 +212,11 @@ function_assignment -> function function_name function_body {%
 	local fname = self.children[2].children[1].value
 	local is_local = check_localness(out, fname)
 	if is_local == nil then
-		out:line():append "local"
-		temp_local(out, fname)
+		if #self.children[2].children[2].children == 0
+		and #self.children[2].children[3].children == 0 then
+			out:line():append "local"
+			temp_local(out, fname)
+		end
 	end
 	self.children[1]:print(out)
 	toggle_temps(out, true)
@@ -398,8 +401,11 @@ lambda_function_assignment -> function_name lambda {%
 	local fname = self.children[1].children[1].value
 	local is_local = check_localness(out, fname)
 	if is_local == nil then
-		out:line():append "local"
-		temp_local(out, fname)
+		if #self.children[1].children[2].children == 0
+		and #self.children[1].children[3].children == 0 then
+			out:line():append "local"
+			temp_local(out, fname)
+		end
 	end
 	toggle_temps(out, true)
 	self.children[1]:print(out)
