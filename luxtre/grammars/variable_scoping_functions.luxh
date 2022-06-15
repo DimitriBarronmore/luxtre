@@ -61,4 +61,7 @@ local function push_temp_vars(out)
 	end
 	out.scope.__TEMP_variable_states = {}
 end
+local function clear_temp_vars(out)
+	out.scope.__TEMP_variable_states = {} end
+end
 %}
