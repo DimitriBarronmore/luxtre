@@ -3,6 +3,10 @@ local path = (...):gsub("ast", "")
 local parse = require(path .. "parse")
 local reverse_array = parse.reverse_array
 
+local ipairs = ipairs
+local table_remove = table.remove
+local table_insert = table.insert
+
 --- [[ AST GENERATION ]] ---
 
 local function testscan(nextsym, next_token)
@@ -17,11 +21,11 @@ local stackmt = {}
 stackmt.__index = stackmt
 function stackmt:pop()
   local val = self[#self]
-  table.remove(self, #self)
+  table_remove(self, #self)
   return val
 end
 function stackmt:push(val)
-  table.insert(self, #self+1, val)
+  table_insert(self, #self+1, val)
 end
 function stackmt:gettop()
   return self[#self]
@@ -33,7 +37,7 @@ end
 local function grab_children(leaf)
   local children = {}
   while leaf[3] do
-    table.insert(children, 1, leaf[4])
+    table_insert(children, 1, leaf[4])
     leaf = leaf[3]
   end
   return children
