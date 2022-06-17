@@ -1,5 +1,7 @@
 # Custom Grammars
-The backbone of Luxtre is the ability to define and combine custom grammars which can transform the final output of a file. To understand exactly how to write a grammar we first need to understand exactly how Luxtre processes code before it reaches the parser.
+A cool feature of Luxtre is the ability to define and combine custom grammars which can transform the final output of a file. To understand exactly how to write a grammar we first need to understand exactly how Luxtre processes code before it reaches the parser.
+
+> Note: These features are subject to change in future versions and forward-compatibility is not guaranteed. If you intend to make your own grammars at this time, be prepared for them to not work in newer releases.
 
 ## Tokenization
 After the pre-processor runs, the resulting code is converted into a series of the following basic terminal tokens:
@@ -179,10 +181,46 @@ A shortcut to out:pop()
 line:append(text, line_number)
 Appends the given text to the line. Returns the line object for chaining.
 
-If a line number is provided, this will be the line number that appears in error messages involving the appended text. If one is nor provided, it will be later backfilled to the next line number.
+If a line number is provided, this will be the line number that appears in error messages involving the appended text. If one is not provided, it will be later backfilled to the next line number.
 
 If you're allowing terminals to print themselves, you don't need to worry about this too much. Otherwise, steal the position from the terminals your rules are matching.
 ```
+
+> # A note about scope rules.
+> Luxtre's standard grammar uses the rule that new variables are assigned local by default. We will call this property of a variable "locality": whether a variable is local, global, or unassigned. Alternative grammars which extend base Lua but not Luxtre can obtain the same logic by including [basic_local_scoping.luxg](/luxtre/grammars/basic_local_scoping.luxg).
+> 
+> In order to keep the syntax consistent and avoid unexpected behavior, it's important to make sure that new extensions respect variable locality. As such there are a few things you need to keep in mind when writing extensions that affect variable assignment.
+>
+>  First, remember that if your extension leverages ordinary assignment part of the work is already done for you. As long as your construct is an Expression it can be picked up by Luxtre's existing assignment, local/global assignment, let assignment, and augmented assignment rules. These will take care of prepending the appropritate prefixes on the left-hand side and setting the scope of the variable being assigned to you.
+>
+> If the construct has internal local variables, there are a few things to keep in mind.
+>> - First: `out.scope:push/pop` is your friend. Internal locals can easily be contained within matched push/pops off the stack at the beginning and ending of the production rule. 
+>> - Second: remember the order of operations.
+>>   - The new variable's locality is determined, and if needed the appropriate prefix is added before the name being assigned to. 
+>>        - Newly assigned variables are always local. Otherwise untyped assignment retains the previous locality.
+>>   - Within the block, the variable retains its previous locality. The right hand of an assignment is always evaluated before the left hand.
+>>   - Once the block is finished printing and evaluation moves on to other statements, if the variable's locality has changed or been re-declared the variable being assigned to is made global or local.
+> 
+> In order to help with this logic, the file [luxtre.grammars.variable_scoping_functions.luxh](/luxtre.grammars.variable_scoping_functions.luxh) contains definitions for a couple of helpful functions used internally.
+>> - `check_localness(out, varname)` -- returns `true` if the variable is local, `false` if it's global, and `nil` if it's unassigned.
+>> - `set_global(out, varname)` -- sets the variable to be global
+>> - `set_local(out, varname)` -- sets the variable to be local
+>> - `reset_scope(out, varname)` -- sets the variable to be undefined
+>> - `temp_local(out, varname)` -- sets the variable as TEMPORARILY local
+>> - `temp_global(out, varname)` -- sets the variable as TEMPORARILY global
+>> - `get_hastemp(out, varname)` -- like check_localness, but for temporary locality.
+>> - `toggle_temps(out, boolean)` -- either enables or disables temporary locality. If called with `true`, temporary locals are local and temporary globals are global. If called with `false`, all variables only use their permanent locality.
+>> - `push_temp_vars(out)` -- changes all temporary scope to permanent scope.
+>> - `clear_temp_vars(out)` -- removes all temporary scope.
+> 
+> From creating Luxtre's grammar, the most effective method seems to be:
+>  - set the assigned variables to the appropriate temporary scope
+>  - enable temporary scope ( `toggle_temps(out, true)` )
+>  - print the left hand of the assignment
+>  - disable temporary scope ( `toggle_temps(out, false)` )
+>  - print the right hand of the assignment
+>  - push the variables to permanent scope ( `push_temp_vars(out)` )
+
 
 # Examples
 The grammar which handles these rules is available for reference in the same format as [examples/metagrammar.luxg](examples/metagrammar.luxg). This can be used as an example of a full transpilation from a grammar into raw text.

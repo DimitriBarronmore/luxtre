@@ -15,6 +15,7 @@ local new_output = require(path .. "parser.output")
 
 local new_sandbox = require(path .. "utils.sandbox")
 local load_func = require(path .. "utils.safeload")
+local data = require(path .. "utils.data")
 
 local module = {}
 
@@ -386,8 +387,7 @@ function module.load_grammar(name, print_out)
     if type(name) ~= "string" then
         error("given filename must be a string", 2)
     end
-    name = name:gsub("^[./\\]", "")
-    local fixedname = name:gsub("%.", "/")
+    local fixedname = name:gsub("%.", data.sep)
     fixedname = fixedname .. ".luxg"
 
     if module.loaded[name] then

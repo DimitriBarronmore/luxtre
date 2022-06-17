@@ -12,9 +12,10 @@ local new_output = require(path .. "parser.output")
 
 local load_func = require(path .. "utils.safeload")
 local deepcopy = require(path .. "utils.deepcopy")
+local data = require(path .. "utils.data")
 
 -- local std_grammar = require(path .. "grammars.std")
-local std_grammar = load_grammar(path .. "grammars.luxtre_standard")
+-- local std_grammar = load_grammar(path .. "grammars.luxtre_standard")
 
 local unpack = unpack
 if _VERSION > "Lua 5.1" then
@@ -192,7 +193,7 @@ local function create_loaders(filetype, grammars)
     end
 
     loaders.compile_file = function(filename, outputname)
-        local outputname = (outputname or filename):gsub("%.", "/")
+        local outputname = (outputname or filename):gsub("%.", data.sep)
         local filename = filename:gsub("%.", "/")
         outputname = outputname .. ".lua"
         local adjusted_filename = fix_filename(filename, filetype)
@@ -213,6 +214,28 @@ local function create_loaders(filetype, grammars)
         file:close()
     end
 
+    local load_compile = function(filename, env)
+        local outputname = filename:gsub("%.", data.sep) .. ".lua"
+        filename = fix_filename(filename, filetype)
+        local grammar = create_grammar(grammars)
+
+        local inpstream, ppenv = process_input(filename, true)
+        for _,g in ipairs(ppenv.__extra_grammars) do
+            local appg = load_grammar(g)
+            appg(grammar)
+        end
+
+        -- local inputstream = create_inpstream(filename)
+        local compiled_text, linemap = generic_compile(inpstream, grammar)
+        local file = io.open(outputname, "w+")
+        file:write(compiled_text)
+        file:flush()
+        file:close()
+
+        local chunk = load_chunk(compiled_text, linemap, filename, env)
+        return chunk
+    end
+
 
     -- Based partially on code from Candran
     -- Thanks for having an implementation to reference
@@ -222,7 +245,12 @@ local function create_loaders(filetype, grammars)
         local filepath = filepath_search(modulepath, filetype)
         if filepath then
             return function(filepath)
-                local status, res = pcall(loaders.loadfile, filepath)
+                local status, res
+                if not data.compile_files then
+                    status, res = pcall(loaders.loadfile, filepath, _G)
+                else
+                    status, res = pcall(load_compile, filepath)
+                end
                 if status == true then
                     return res(modulepath)
                 else
