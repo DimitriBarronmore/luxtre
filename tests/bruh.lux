@@ -1,5 +1,166 @@
 
-# add_grammar "tg2"
+--print( "string":rep(5) )
+do
+--a, b, c, d = 1, 1, 1, 1
+--a, b, c, e += 5, 6, 7, 8
+--foo, bar += 1 * 5, 2 + 4
 
-@
+--a *= 2
+--d &= "h"
 
+function test(fizz)
+    fizz |= "buzz"
+	print(fizz)
+end
+test()
+test("h")
+end
+
+--print(a,b,c,d)
+local bruh = "h"
+
+--print(1 != 2)
+
+tab = {1="apple", 2="peach", 3="orange", 500="durian", true = false, bruh = "nill", ["str":rep(4):rep(4)] : sick }
+--print(tab["h"])
+
+h = ( txt ) -> print(txt)
+
+h ( txt ) -> print(txt)
+
+local h ( txt ) -> print(txt)
+
+tab = {apple: -> print("apple")}
+
+h => print(self.whatever)
+local h ( txt ) => print(txt)
+
+do
+function decorate(func)
+	return function()
+		print "hallo"
+		func()
+	end
+end
+function decorate2(func)
+	return function()
+		print "world"
+		func()
+	end
+end
+function decorate3(func)
+	return function()
+		print ":3"
+		func()
+	end
+end
+@decorate
+@decorate2
+@decorate3
+local function bruh() print("original message") end
+bruh()
+--[[
+>> 	hallo
+	world
+	:3
+	original message
+--]]
+
+print("---------")
+
+--@decorate 
+--bruh -> print("H")
+
+--@decorate 
+--local bruh => print("H")
+
+
+@decorate
+global bruh -> print( bruh )
+
+print("---------")
+
+
+--[==[bruh()
+
+@decorate
+local bruh -> print( bruh )
+
+bruh()--]==]
+end
+
+do
+global b = c
+local a, b = c, b
+local b
+end
+
+
+do
+let b = () -> print(b)
+end
+
+do
+table = {a:1, "b":2, 3:3}
+
+
+func = (x, y) -> ( x = x + y )
+
+
+pow_x(x) -> do
+    y = x * x
+    return y
+end
+end
+
+do
+local object = {name = "h"}
+print_name => ( print(self.name) )
+
+object.y = function(self) print(self.y) end
+
+print(y)
+end
+
+do
+global table = {1,2,3, 4 = "h" }
+table.h = true
+
+table = {2}
+end
+
+do
+global b
+a, b, c = 1, 2, 3
+do
+local table = {1}
+end
+global name, name2 = 1,1
+clear_table (table) -> do
+    for k,_ in pairs(table) do
+        table[k] = nil
+    end
+end
+
+print(#table)
+clear_table(table)
+print(#table)
+
+end
+
+do
+global i = 0
+for i = 1, 3 do
+	print(i)
+end
+print(i)
+end
+do
+global name, val
+name, val = 1, 1
+for name,val in ipairs({1,2,3,4}) do
+	print(name,val)
+end
+print(name, val)
+end
+--]==]
