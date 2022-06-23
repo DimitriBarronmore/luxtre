@@ -43,6 +43,8 @@ local function grab_children(leaf)
   return children
 end
 
+local ipairs = ipairs
+
 local function extract_rule_components(revarray, item)
   local prule = item.production_rule
   local start_node = item.begins_at
@@ -122,7 +124,6 @@ local generic_print = function(self, outp)
   outp:line():append(self.value, self.position[1])
 end
 -- local generic_print = function(self) return (self._before or "") .. self.value end
-
 --- take in an item in the format, expand it
 local recurse_tree
 recurse_tree = function(revarray, start)
@@ -139,7 +140,7 @@ recurse_tree = function(revarray, start)
 end
 
 function export.earley_extract(array)
-
+  local stime = os.clock()
   local revarray = reverse_array(array)
 
   ---@type earley_item
@@ -161,6 +162,8 @@ function export.earley_extract(array)
 
   recurse_tree(revarray, root_item)
 
+  local etime = os.clock()
+  print("astt", etime - stime)
   return tree
 
 end
