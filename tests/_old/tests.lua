@@ -3,6 +3,7 @@
 local newGrammar = require("luxtre.parser.grammar")
 local tokenate = require "luxtre.parser.tokenate"
 local parse = require "luxtre.parser.parse"
+local ast = require "luxtre.parser.ast"
 
 local keys = {
     "break",
@@ -86,26 +87,44 @@ local function facprint2(self)
 end
 
 
+-- local rules = {
+--   {"A", "A A'"},
+--   {"A", "A'"},
+--   {"A'", "'a'"},
+--   {"A'", ""}
+-- } 
+--right-recursed
+-- local rules = {
+--   {"A", "'a' A"},
+--   {"A", ""}
+-- }
+-- local rules = {
+--   {"S", ""},
+--   -- {"S'", ""},
+--   {"S", "S S'"},
+--   {"S'", "'b'"},
+--   {"S'", "A"},
+--   {"A", ""},
+--   {"A", "A 'a'"},
+--   {"A", "A A'"},
+--   {"A'", "A 'b'"},
+--   {"A'", ""},
+-- }
+
 local rules = {
-  {"sum", "sum '+' product",        [[$1 .. " + " .. $3]]},
-  {"sum", "sum '-' product",        [[$1 .. " - " .. $3]]},
-  {"sum", "product",                [[$1]]},
-  {"product", "product '*' factor", [[$1 .. " * " .. $3]]},
-  {"product", "product '/' factor", [[$1 .. " / " .. $3]]},
-  {"product", "factor",             [[$1]]},
-  {"factor", "'(' sum ')'",         [["( " .. $2 .. " )"]]},
-  {"factor", "Number",              [[$1]]}
+  {"S", "S S"},
+  {"S", "'a'"}
 }
 
 grammar:addRules(rules)
 
 -- print("\n\n\n\n")
-grammar:_debug("test grammar")
+-- grammar:_debug("test grammar")
 
 -- print("\n===stream\n")
 
 -- local str = "1+(2*3-4)/(5+10)-3"
-local str = "1+(2*3-4)"
+local str = "a a a"
 local inpstr = tokenate.inputstream_from_text(str, "arithm")
 local tokstr = tokenate.new_tokenstream()
 tokstr:tokenate_stream(inpstr, grammar)
@@ -115,13 +134,13 @@ print("\n===earley\n")
 
 -- print(#tokstr.tokens)
 
-local ptree = parse.earley_parse(grammar, tokstr, "sum")
+local ptree = parse.earley_parse(grammar, tokstr, "S")
 
 -- ptree:_debug("reverse")
-local ast = parse.extract_parsetree(ptree)
+local ast = ast.earley_extract(ptree)
 -- print("\n\n=====\n")
 ast:_debug()
-print(ast.tree:print())
+-- print(ast.tree:print())
 
 
 -- local egram = newGrammar()

@@ -45,20 +45,52 @@ end
 
 local ipairs = ipairs
 
+--[[
+procedure DFS(G, v) is
+    label v as discovered
+    for all directed edges from v to w that are in G.adjacentEdges(v) do
+        if vertex w is not labeled as discovered then
+            recursively call DFS(G, w)
+--]]
+-- local function get_edges(set, rule, count)
+
+-- end
+
+-- local dfs
+-- local function dfs(array, item, start, discovered)
+--   discovered[start] = true
+--   local edges = get_edges(start)
+--   for _, end in ipairs(edges) do
+    
+--   end
+-- end
+
+-- local function extract_rule_components(revarray, item, discovered)
+--   local s_node, e_node = item.begins_at, item.ends_at
+--   local rule, count = item.production_rule, 1
+--   local discovered = discovered or {}
+
+
+-- end
+
+local st_push = stackmt.push
+local st_pop = stackmt.pop
+local st_top = stackmt.gettop
 local function extract_rule_components(revarray, item)
   local prule = item.production_rule
   local start_node = item.begins_at
   local end_node = item.ends_at
-  local stack = newstack()
+  -- local stack = newstack()
+  local stack = {}
   local discovered = {}
 
   if #prule == 0 then
     return {}
   end
 
-  stack:push({start_node, 1, nil, {type = "root", value = "nil"}}) -- node, depth
+  st_push(stack, {start_node, 1, nil, {type = "root", value = "nil"}}) -- node, depth
   while #stack > 0 do
-    local current_node = stack:pop()
+    local current_node = st_pop(stack)
     -- Get the children
     local check_rule = prule[current_node[2]]
     local children = {}
@@ -74,7 +106,7 @@ local function extract_rule_components(revarray, item)
             return grab_children({new_node, current_node[2] + 1, current_node, info})
           elseif current_node[2] + 1 <= #prule then
             local info = {type = "non-terminal", value = edge, rule = check_rule.value}
-            stack:push({new_node, current_node[2] + 1, current_node, info})
+            st_push(stack, {new_node, current_node[2] + 1, current_node, info})
           end
         end
       end
@@ -95,7 +127,7 @@ local function extract_rule_components(revarray, item)
         elseif current_node[2] + 1 <= #prule then
           local info = {type = "terminal", value = checktoken.value, _before = checktoken._before,
                          position = checktoken.position, rule = checktoken.type}
-          stack:push({new_node, current_node[2] + 1, current_node, info} )
+          st_push(stack, {new_node, current_node[2] + 1, current_node, info} )
         end
       end
     end
@@ -131,10 +163,10 @@ recurse_tree = function(revarray, start)
   start.print = start.value.production_rule.post
   start.children = extract_rule_components(revarray, rule)
   for _, child in ipairs(start.children) do
-    if child.type == "non-terminal" then
-      recurse_tree(revarray, child)
-    else
+    if child.type ~= "non-terminal" then
       child.print = generic_print
+    else
+      recurse_tree(revarray, child)
     end
   end
 end
