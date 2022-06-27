@@ -302,7 +302,6 @@ end
 
 --big parser
 function export.earley_parse(grammar, tokenstr, start_rule)
-  local stime = os.clock()
   if type(start_rule) ~= "string" then
     error(("invalid starting rule '%s'"):format(start_rule),2)
   end
@@ -467,10 +466,7 @@ function export.earley_parse(grammar, tokenstr, start_rule)
     error(errmsg)
     -- print(errmsg)
   end
-  local etime = os.clock()
-  print("parset", etime - stime)
-    return array
-
+  return array
 end
 
 return export
