@@ -50,7 +50,7 @@ local function bfs_find(array, root, explored)
   local start, goal = root.begins_at, root.ends_at
 
   if #prod_rule == 0 then
-    return {start, 1, {"nil", {type = "nil", value = ""}}, {1, 1, {"rule", root}} }
+    --return {start, 1, {"nil", {type = "nil", value = ""}}, {1, 1, {"rule", root}} }
   end
 
   queue[#queue + 1] = {start, 1, {"rule", root} }
@@ -59,7 +59,7 @@ local function bfs_find(array, root, explored)
   while #queue > 0 do
     local task = queue[#queue]
     queue[#queue] = nil
-    if task[1] == goal and task[2] == #prod_rule + 1 then
+    if (task[1] == goal and task[2] == #prod_rule + 1) or (#prod_rule == 0) then
       return task
     end
     local next_path = prod_rule[task[2]]
@@ -96,24 +96,26 @@ local generic_print = function(self, outp)
 end
 
 local function bfs_iterate(revarray, root)
-  local roottask = {type = "root", rule = root, children = {}, print = root.production_rule.post }
+  local roottask = {root, type = "root", rule = root.result, children = {}, print = root.production_rule.post }
   local findqueue = {roottask}
   while #findqueue > 0 do
     local task = findqueue[#findqueue]
     findqueue[#findqueue] = nil
-    local found = bfs_find(revarray, task.rule)
+    local found = bfs_find(revarray, task[1])
 
     if found then
       local items = {}
-      repeat
+      -- repeat
+      while found and found[3][2] ~= task[1] do
         table_insert(items, 1, found[3])
         found = found[4]
-      until (not found) or found[3][2] == task.rule
+      -- until (not found) or found[3][2] == task.rule
+      end
 
       for i = 1, #items do
         local v = items[i]
         if v[1] == "rule" then
-          local pushrule = {type = "non-terminal", rule = v[2], children = {}, print = v[2].production_rule.post }
+          local pushrule = {v[2], type = "non-terminal", rule = v[2].result, children = {}, print = v[2].production_rule.post }
           task.children[#task.children+1] = pushrule
           findqueue[#findqueue+1] = pushrule
         elseif v[1] == "scan" then
