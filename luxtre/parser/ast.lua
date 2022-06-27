@@ -4,16 +4,21 @@ local parse = require(path .. "parse")
 local reverse_array = parse.reverse_array
 
 local ipairs = ipairs
+local pairs = pairs
 local table_remove = table.remove
 local table_insert = table.insert
 
 --- [[ AST GENERATION ]] ---
 
 local function testscan(nextsym, next_token)
+  if next_token then
     return (nextsym.type == "match_type" and nextsym.value == next_token.type)
         or (nextsym.type == "match_keyw" and nextsym.value == next_token.value)
         or (nextsym.type == "match_syms" and nextsym.value == next_token.value)
+  else
+     return (nextsym.type == "match_eof")
   end
+end
 
 local export = {}
 
@@ -43,7 +48,7 @@ local function grab_children(leaf)
   return children
 end
 
-local ipairs = ipairs
+local pairs = pairs
 
 --[[
 procedure DFS(G, v) is
@@ -171,7 +176,7 @@ recurse_tree = function(revarray, start)
   end
 end
 
-function export.earley_extract(array)
+function export.old_earley_extract(array)
   local stime = os.clock()
   local revarray = reverse_array(array)
 
@@ -196,8 +201,259 @@ function export.earley_extract(array)
 
   local etime = os.clock()
   print("astt", etime - stime)
+
   return tree
 
 end
+
+
+local function grab_children(leaf)
+  local children = {}
+  while leaf[3] do
+    table_insert(children, 1, leaf[4])
+    leaf = leaf[3]
+  end
+  return children
+end
+
+
+-----==================
+
+local queuemt = {}
+queuemt.__index = queuemt
+
+function queuemt:pop()
+  local val = self[1]
+  table_remove(self, 1)
+  return val
+end
+function queuemt:push(val)
+  table_insert(self, #self+1, val)
+end
+
+function queuemt:gettop()
+  return self[#self]
+end
+local function newqueue()
+  return setmetatable({}, queuemt)
+end
+
+--[[
+ 1  procedure BFS(G, root) is
+ 2      let Q be a queue
+ 3      label root as explored
+ 4      Q.enqueue(root)
+ 5      while Q is not empty do
+ 6          v := Q.dequeue()
+ 7          if v is the goal then
+ 8              return v
+ 9          for all edges from v to w in G.adjacentEdges(v) do
+10              if w is not labeled as explored then
+11                  label w as explored
+12                  Q.enqueue(w)
+--]]
+
+
+local function bfs_find(array, root, explored)
+  local queue = newqueue()
+  -- print("qu", queue)
+  local explored = explored or {}
+  local prod_rule = root.production_rule
+  local start, goal = root.begins_at, root.ends_at
+
+  if #prod_rule == 0 then
+    -- print("empty rule")
+    return {start, 1, {"nil", {type = "nil", value = ""}}, {1, 1, {"rule", root}} }
+  end
+
+  --table format: {node, depth, item, parent}
+  -- print"rootitems"
+  -- for i,v in pairs(root) do print(i,v) end
+  queue:push( {start, 1, {"rule", root} } )
+  explored[start] = true
+
+  -- print("\n\nbfs_find starting")
+  while #queue > 0 do
+    local task = queue:pop()
+    -- print("gdepth", task[1], goal)
+    if task[1] == goal and task[2] == #prod_rule + 1 then
+      -- print(task[2], (task[3]), task[1])
+      -- print "goal found"
+      return task
+    end
+    local next_path = prod_rule[task[2]]
+    -- print("pdepth", #prod_rule, task[2])
+    
+    if next_path then
+      -- print("np", next_path.value, next_path.type, (task[3][1] == "rule" and task[3][2]:_debug()), task[1])
+      -- print "--"
+      if next_path.type == "match_rule" then
+        local linkset = array.links[task[1]][next_path.value]
+        -- print("val", next_path.value)
+        -- print("lset", linkset)
+        if linkset then
+          if not explored[linkset] then
+            explored[linkset] = true
+          end
+          for _,edge in ipairs(linkset) do
+            if not explored[edge] then
+              explored[edge] = true
+              local e, r = edge[2], edge[1]
+              -- print(_, edge[1]:_debug(), edge[2])
+                -- print("adding,", e, r, r:_debug())
+              queue:push( {e, task[2] + 1, {"rule", r}, task} )
+            end
+          end
+        end
+      else
+        -- print "ran into scan"
+        local current_token = array.tokenstr.tokens[task[1]]
+        -- print("tok", task[1], current_token and current_token.value, next_path.value)
+        local matches = testscan(next_path, current_token)
+        -- print("matches?", matches)
+        if matches then
+          -- print("m", current_token)
+          queue:push( {task[1] + 1, task[2] + 1, {"scan", current_token}, task} )
+        end
+
+      end
+      -- print "======"
+    else
+      -- print "no next path"
+    end
+  end
+  -- print "goal not found"
+end
+
+--[[
+        {type = "non-terminal", value = edge, rule = check_rule.value}
+
+        {type = "terminal", value = checktoken.value, _before = checktoken._before,
+            position = checktoken.position, rule = checktoken.type}
+
+              start.print = start.value.production_rule.post
+]]
+
+local generic_print = function(self, outp)
+  outp:line():append(self.value, self.position and self.position[1])
+end
+local childs_print = function(self, outp)
+  for _,child in ipairs(self.children) do
+    child:print(outp)
+  end
+end
+
+
+local function bfs_iterate(revarray, root)
+  local findqueue = newqueue()
+  local explored = {}
+  local roottask = {type = "root", rule = root, children = {}, print = root.production_rule.post }
+  findqueue:push(roottask)
+  while #findqueue > 0 do
+    local task = findqueue:pop()
+    -- print("task", task)
+    local found = bfs_find(revarray, task.rule)
+
+    if found then
+      -- print("\n\n--debugging", task.rule:_debug())
+      local items = {}
+      local count = 0
+      repeat
+        -- count = count + 1; print("c", count)
+      --   for i,v in pairs(found) do print(i,v) end
+      --   for i,v in pairs(found[3]) do print(">", i,v) end
+      --   for i,v in pairs(found[3][2]) do print(">>", i,v) end
+        -- print(found[3][2], task)
+        table_insert(items, 1, found[3])
+        found = found[4]
+      until (not found) or found[3][2] == task.rule
+
+      for i,v in ipairs(items) do
+        -- print(i,v)
+        -- table_insert(task.children, v)
+        if v[1] == "rule" then
+          -- print("pushing", i, v[2], v[2]:_debug())
+
+          local pushrule = {type = "non-terminal", rule = v[2], children = {}, print = v[2].production_rule.post }
+          table_insert(task.children, pushrule)
+       
+          findqueue:push( pushrule )
+        elseif v[1] == "scan" then
+          -- print("v")
+          -- print(v[2])
+          if v[2] then
+            -- print("scan", v[2].value)
+            -- for j,k in ipairs(v) do print("it", j,k) end
+            table_insert(task.children, {type = "terminal", value = v[2].value, rule = v[2].type, 
+                                        position = v[2].position, print = generic_print})
+          end
+        elseif v[1] == "nil" then
+          table_insert(task.children, {type = "nil", value = "", print = generic_print})
+          -- print "nil'd"
+        end
+      end
+    end
+  end
+
+  return roottask
+
+--   for i,v in pairs(roottask.children) do print(i,v) end
+--   print ">"
+--     for i,v in pairs(roottask.children[1]) do print(i,v) end
+--   print ">>"
+--     for i,v in pairs(roottask.children[1][1]) do print(i,v) end
+--     print ">>c"
+--     for i,v in pairs(roottask.children[1].children) do print(i,v) end
+end
+
+function export.earley_extract(array)
+  local stime = os.clock()
+
+  local revarray = reverse_array(array)
+
+  -- -- debug section
+  -- for _,set in ipairs(revarray.links) do
+  --   print("set", _)
+  --   for _, subset in pairs(set) do
+  --     print("subset", _)
+  --     for i,v in ipairs(subset) do
+  --       print(i,v[1]:_debug(), v[2])
+  --     end
+  --     print "==="
+  --   end
+  -- end
+  -- print("\n\n")
+  -- -- end debug
+
+  array.final_item.ends_at = #array
+  -- local task = bfs_find(revarray, array.final_item)
+  local roottask = bfs_iterate(revarray, array.final_item)
+
+  -- roottask:print()
+
+  -- print("\n\n--")
+  -- local items = {}
+  -- repeat
+  --   print("items", task)
+  --   for i,v in ipairs(task) do print(i,v) end
+  --   table_insert(items, 1, task[3])
+  --   print("ntask", task, task[4])
+  --   task = task[4]
+  -- until task == nil
+  -- print("----")
+  -- for i,v in ipairs(items) do print(i,v, v:_debug()) end
+  
+
+
+  
+  local etime = os.clock()
+  print("\n\nastt", etime - stime)
+  -- error "--"
+
+  return roottask
+end
+
+
+
 
 return export

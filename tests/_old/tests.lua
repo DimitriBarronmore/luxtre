@@ -4,6 +4,7 @@ local newGrammar = require("luxtre.parser.grammar")
 local tokenate = require "luxtre.parser.tokenate"
 local parse = require "luxtre.parser.parse"
 local ast = require "luxtre.parser.ast"
+local output = require "luxtre.parser.output"
 
 local keys = {
     "break",
@@ -98,23 +99,24 @@ end
 --   {"A", "'a' A"},
 --   {"A", ""}
 -- }
--- local rules = {
---   {"S", ""},
---   -- {"S'", ""},
---   {"S", "S S'"},
---   {"S'", "'b'"},
---   {"S'", "A"},
---   {"A", ""},
---   {"A", "A 'a'"},
---   {"A", "A A'"},
---   {"A'", "A 'b'"},
---   {"A'", ""},
--- }
-
 local rules = {
-  {"S", "S S"},
-  {"S", "'a'"}
+  {"S", ""},
+  -- {"S'", ""},
+  {"S", "S S'"},
+  {"S'", "'b'"},
+  {"S'", "A"},
+  {"A", ""},
+  {"A", "A A'"},
+  {"A", "'a' 'a' 'a'"},
+  {"A'", "'b'"},
+  -- {"A'", ""},
+  -- {"*", "* 'a'"}
 }
+
+-- local rules = {
+--   {"S", "S S"},
+--   {"S", "'a'"}
+-- }
 
 grammar:addRules(rules)
 
@@ -124,8 +126,8 @@ grammar:addRules(rules)
 -- print("\n===stream\n")
 
 -- local str = "1+(2*3-4)/(5+10)-3"
-local str = "a a a"
-local inpstr = tokenate.inputstream_from_text(str, "arithm")
+local str = "a a a b b "
+local inpstr = tokenate.inputstream_from_text(str:rep(800), "arithm")
 local tokstr = tokenate.new_tokenstream()
 tokstr:tokenate_stream(inpstr, grammar)
 -- tokstr:_debug()
@@ -138,9 +140,31 @@ local ptree = parse.earley_parse(grammar, tokstr, "S")
 
 -- ptree:_debug("reverse")
 local ast = ast.earley_extract(ptree)
+
+print"\n\nrootchilds"
+  local printchilds
+  function printchilds(task, ident)
+    for _, child in ipairs(task.children) do
+      if child.type == "non-terminal" then
+        print(string.rep("  ", ident) .. _, "rule", child.rule:_debug())
+        printchilds(child, ident + 1)
+      else
+        print(string.rep("  ", ident) .. _, "scan", child.value)
+      end
+    end
+  end
+  -- printchilds(ast, 0)
+
+
 -- print("\n\n=====\n")
-ast:_debug()
--- print(ast.tree:print())
+-- ast:_debug()
+local output = output()
+
+print("---output---")
+ast:print(output)
+local txt = output:print()
+-- print(txt)
+-- print(output:print())
 
 
 -- local egram = newGrammar()

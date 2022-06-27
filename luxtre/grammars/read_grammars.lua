@@ -363,8 +363,22 @@ local function make_grammar_function(filename, env, print_out)
         error(res, 2)
     end
     local fast = ast.earley_extract(res)
+
+    -- local printchilds
+    -- function printchilds(task, ident)
+    --     for _, child in ipairs(task.children) do
+    --       if child.type == "non-terminal" then
+    --         print(string.rep("  ", ident) .. _, "rule", child.rule:_debug())
+    --         printchilds(child, ident + 1)
+    --       else
+    --         print(string.rep("  ", ident) .. _, "scan", child.value)
+    --       end
+    --     end
+    --   end
+    --   printchilds(fast, 0)
+
     local output = new_output()
-    fast.tree:print(output)
+    fast:print(output)
     local compiled, linemap = output:print()
     if print_out then
         print("----" .. filename .. "----")

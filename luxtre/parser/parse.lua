@@ -1,7 +1,7 @@
 local print = print
 local ipairs = ipairs
 local pairs = pairs
--- local table = table
+local table = table
 
 local debug = false
 
@@ -56,8 +56,8 @@ function earley_item_base:_debug(reverse, longest_pattern, longest_result)
   else
     index = self.begins_at
   end
-  local tmp_msg = ("%s %s::>  %s %s (%s)"):format(self.result, string.rep(" ", longest_result - self.result:len()), table.concat(tmp_concat, " "),
-      string.rep(" ", longest_pattern - self.production_rule.pattern:len()), index)
+  local tmp_msg = ("%s %s::>  %s %s (%s) > %s"):format(self.result, string.rep(" ", longest_result - self.result:len()), table.concat(tmp_concat, " "),
+      string.rep(" ", longest_pattern - self.production_rule.pattern:len()), index, self.ends_at or "?")
   return tmp_msg
 end
 
@@ -137,24 +137,55 @@ local function new_earleyarray(grammar, tokenstr)
   return setmetatable({grammar = grammar, tokenstr = tokenstr}, earley_array_base)
 end
 
+local function add_link(links, s, e, item)
+  local res = item.result
+  local work_set = links[s]
+  if not work_set[res] then
+    work_set[res] = {}
+    work_set[res].discovered = {}
+  end
+  if not work_set[res].discovered[e] then
+    table.insert(work_set[res], {item, e})
+  end
+end
+
+local function sort_longmatch(a,b)
+  return a[2] < b[2]
+end
+
 function export.reverse_array(array)
   local newarray = {}
   newarray.grammar = array.grammar
   newarray.tokenstr = array.tokenstr
+  local links = {}
   for i = 1, #array do
     table.insert(newarray, {})
+    table.insert(links, {})
 
     local compset = array[i].complete
     for _,item in ipairs(compset) do
       local revitem = item:clone()
       revitem.ends_at = i
       table.insert(newarray[item.begins_at], revitem)
+      add_link(links, item.begins_at, i, revitem)
     end
   end
-  for _,set in ipairs(newarray) do
-    table.sort(set, function(a,b) return a.ends_at > b.ends_at end)
+  -- for _,set in ipairs(newarray) do
+  --   table.sort(set, function(a,b) return a.ends_at > b.ends_at end)
+  -- end
+  for _,set in ipairs(links) do
+    -- print("set", _)
+    for _, subset in pairs(set) do
+      -- print("subset", _)
+      table.sort(subset, sort_longmatch)
+      -- print "==="
+      -- for i,v in ipairs(subset) do
+      --   print(i,v)
+      -- end
+    end
   end
-
+  newarray.links = links
+  -- error("---")
   return newarray
 end
 
