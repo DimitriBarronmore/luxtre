@@ -22,23 +22,6 @@ end
 
 local export = {}
 
-local stackmt = {}
-stackmt.__index = stackmt
-function stackmt:pop()
-  local val = self[#self]
-  table_remove(self, #self)
-  return val
-end
-function stackmt:push(val)
-  table_insert(self, #self+1, val)
-end
-function stackmt:gettop()
-  return self[#self]
-end
-local function newstack()
-  return setmetatable({}, stackmt)
-end
-
 local function grab_children(leaf)
   local children = {}
   while leaf[3] do
@@ -78,9 +61,6 @@ procedure DFS(G, v) is
 
 -- end
 
-local st_push = stackmt.push
-local st_pop = stackmt.pop
-local st_top = stackmt.gettop
 local function extract_rule_components(revarray, item)
   local prule = item.production_rule
   local start_node = item.begins_at
@@ -219,6 +199,27 @@ end
 
 -----==================
 
+local stackmt = {}
+stackmt.__index = stackmt
+function stackmt:pop()
+  local val = self[#self]
+  table_remove(self, #self)
+  return val
+end
+function stackmt:push(val)
+  self[#self+1] = val
+end
+function stackmt:gettop()
+  return self[#self]
+end
+local function newstack()
+  return setmetatable({}, stackmt)
+end
+
+local st_push = stackmt.push
+local st_pop = stackmt.pop
+local st_top = stackmt.gettop
+
 local queuemt = {}
 queuemt.__index = queuemt
 
@@ -228,7 +229,7 @@ function queuemt:pop()
   return val
 end
 function queuemt:push(val)
-  table_insert(self, #self+1, val)
+ self[#self+1] = val
 end
 
 function queuemt:gettop()
@@ -254,10 +255,11 @@ end
 --]]
 
 
-local function bfs_find(array, root, explored)
-  local queue = newqueue()
+local function bfs_find(array, root)
+  -- local queue = newstack()
+  local queue = {}
   -- print("qu", queue)
-  local explored = explored or {}
+  local explored = {}
   local prod_rule = root.production_rule
   local start, goal = root.begins_at, root.ends_at
 
@@ -269,12 +271,14 @@ local function bfs_find(array, root, explored)
   --table format: {node, depth, item, parent}
   -- print"rootitems"
   -- for i,v in pairs(root) do print(i,v) end
-  queue:push( {start, 1, {"rule", root} } )
+  queue[#queue + 1] = {start, 1, {"rule", root} }
   explored[start] = true
 
   -- print("\n\nbfs_find starting")
   while #queue > 0 do
-    local task = queue:pop()
+    -- local task = st_pop(queue)
+    local task = queue[#queue]
+    queue[#queue] = nil
     -- print("gdepth", task[1], goal)
     if task[1] == goal and task[2] == #prod_rule + 1 then
       -- print(task[2], (task[3]), task[1])
@@ -295,13 +299,15 @@ local function bfs_find(array, root, explored)
           if not explored[linkset] then
             explored[linkset] = true
           end
-          for _,edge in ipairs(linkset) do
+          -- for _,edge in ipairs(linkset) do
+          for i = 1, #linkset do
+            local edge = linkset[i]
             if not explored[edge] then
               explored[edge] = true
               local e, r = edge[2], edge[1]
               -- print(_, edge[1]:_debug(), edge[2])
                 -- print("adding,", e, r, r:_debug())
-              queue:push( {e, task[2] + 1, {"rule", r}, task} )
+              queue[#queue + 1] = {e, task[2] + 1, {"rule", r}, task}
             end
           end
         end
@@ -313,7 +319,7 @@ local function bfs_find(array, root, explored)
         -- print("matches?", matches)
         if matches then
           -- print("m", current_token)
-          queue:push( {task[1] + 1, task[2] + 1, {"scan", current_token}, task} )
+          queue[#queue + 1] = {task[1] + 1, task[2] + 1, {"scan", current_token}, task}
         end
 
       end
@@ -337,27 +343,24 @@ end
 local generic_print = function(self, outp)
   outp:line():append(self.value, self.position and self.position[1])
 end
-local childs_print = function(self, outp)
-  for _,child in ipairs(self.children) do
-    child:print(outp)
-  end
-end
-
 
 local function bfs_iterate(revarray, root)
-  local findqueue = newqueue()
-  local explored = {}
+  local count = 0
+  -- local findqueue = newqueue()
   local roottask = {type = "root", rule = root, children = {}, print = root.production_rule.post }
-  findqueue:push(roottask)
+  local findqueue = {roottask}
+  -- findqueue:push(roottask)
   while #findqueue > 0 do
-    local task = findqueue:pop()
+    -- local task = findqueue:pop()
+    count = count + 1
+    local task = findqueue[#findqueue]
+    findqueue[#findqueue] = nil
     -- print("task", task)
     local found = bfs_find(revarray, task.rule)
 
     if found then
       -- print("\n\n--debugging", task.rule:_debug())
       local items = {}
-      local count = 0
       repeat
         -- count = count + 1; print("c", count)
       --   for i,v in pairs(found) do print(i,v) end
@@ -368,33 +371,37 @@ local function bfs_iterate(revarray, root)
         found = found[4]
       until (not found) or found[3][2] == task.rule
 
-      for i,v in ipairs(items) do
+      -- for i,v in ipairs(items) do
+      for i = 1, #items do
+        local v = items[i]
         -- print(i,v)
         -- table_insert(task.children, v)
         if v[1] == "rule" then
           -- print("pushing", i, v[2], v[2]:_debug())
 
           local pushrule = {type = "non-terminal", rule = v[2], children = {}, print = v[2].production_rule.post }
-          table_insert(task.children, pushrule)
+          -- table_insert(task.children, pushrule)
+          task.children[#task.children+1] = pushrule
        
-          findqueue:push( pushrule )
+          -- findqueue:push( pushrule )
+          findqueue[#findqueue+1] = pushrule
         elseif v[1] == "scan" then
           -- print("v")
           -- print(v[2])
           if v[2] then
             -- print("scan", v[2].value)
             -- for j,k in ipairs(v) do print("it", j,k) end
-            table_insert(task.children, {type = "terminal", value = v[2].value, rule = v[2].type, 
-                                        position = v[2].position, print = generic_print})
+            task.children[#task.children+1] = {type = "terminal", value = v[2].value, rule = v[2].type, 
+                                        position = v[2].position, print = generic_print}
           end
         elseif v[1] == "nil" then
-          table_insert(task.children, {type = "nil", value = "", print = generic_print})
+          task.children[#task.children + 1] = {type = "nil", value = "", print = generic_print}
           -- print "nil'd"
         end
       end
     end
   end
-
+  print("count", count)
   return roottask
 
 --   for i,v in pairs(roottask.children) do print(i,v) end

@@ -93,9 +93,9 @@ grammar_core.__index = grammar_core
 
 local generic_post = function(self, outp)
   local ln = outp:line()
-  for _,v in ipairs(self.children) do
-    v:print(outp)
-    -- ln:append(v:print(outp))
+  for i = 1, #self.children do
+    local child = self.children[i]
+    child:print(outp)
   end
 end
 

@@ -144,13 +144,12 @@ local function add_link(links, s, e, item)
     work_set[res] = {}
     work_set[res].discovered = {}
   end
-  if not work_set[res].discovered[e] then
-    table.insert(work_set[res], {item, e})
-  end
+    -- table.insert(work_set[res], {item, e})
+    work_set[res][#work_set[res]+1] = {item, e}
 end
 
 local function sort_longmatch(a,b)
-  return a[2] < b[2]
+  return a[2] > b[2]
 end
 
 function export.reverse_array(array)
@@ -163,17 +162,22 @@ function export.reverse_array(array)
     table.insert(links, {})
 
     local compset = array[i].complete
-    for _,item in ipairs(compset) do
+    -- for _,item in ipairs(compset) do
+    for j = 1, #compset do
+      local item = compset[j]
       local revitem = item:clone()
       revitem.ends_at = i
-      table.insert(newarray[item.begins_at], revitem)
+      -- table.insert(newarray[item.begins_at], revitem)
+      newarray[item.begins_at][#newarray[item.begins_at]+1] = revitem
       add_link(links, item.begins_at, i, revitem)
     end
   end
   -- for _,set in ipairs(newarray) do
   --   table.sort(set, function(a,b) return a.ends_at > b.ends_at end)
   -- end
-  for _,set in ipairs(links) do
+  -- for _,set in ipairs(links) do
+  for i = 1, #links do
+    local set = links[i]
     -- print("set", _)
     for _, subset in pairs(set) do
       -- print("subset", _)
