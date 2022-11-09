@@ -72,7 +72,9 @@ local function generic_compile(inputstream, grammar)
 
     local f_ast = ast.earley_extract(res)
     local output = new_output()
+    grammar:runSetup(output)
     f_ast:print(output)
+    grammar:runCleanup(output)
     --print(output:print())
     return output:print()
 end

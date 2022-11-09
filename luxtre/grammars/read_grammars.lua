@@ -27,7 +27,9 @@ local keys = {
     "reset",
     "remove",
     "import",
-    "eof"
+    "eof",
+    "setup",
+    "cleanup"
 }
 local ops = {
     "->",
@@ -142,6 +144,8 @@ end
     {"statement", "reserve_kws"},
     {"statement", "reserve_ops"},
     {"statement", "import_grammar"},
+    {"statement", "add_setup"},
+    {"statement", "add_cleanup"},
 
     {"reset_prod", "'@' reset Name", function(self, out)
         local ln = out:push_header()
@@ -291,6 +295,20 @@ end
     {"rule_item", "String", function(self, out) return self.children[1].value end},
     {"rule_item", "Keyword", function(self, out) return self.children[1].value end},
     {"rule_item", "'<' eof '>'", function(self, out) return "<eof>" end},
+
+    {"add_setup", "'@' setup functext", function(self, out)
+        local ln = out:line()
+        ln:append("grammar:addSetup( function(out) ")
+        self.children[3]:print(out)
+        ln:append("end)")
+    end},
+
+    {"add_cleanup", "'@' cleanup functext", function(self, out)
+        local ln = out:line()
+        ln:append("grammar:addCleanup( function(out) ")
+        self.children[3]:print(out)
+        ln:append("end)")
+    end},
 
     {"functext", "'{%' grab_any '%}'", function(self, out)
         self.children[2]:print(out)

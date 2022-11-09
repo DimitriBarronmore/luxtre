@@ -12,6 +12,7 @@
     - [Augmented Assignment](#augmented-assignment)
     - [Lambda Functions](#lambda-functions)
     - [Function Decorators](#function-decorators)
+    - [Export Scope](#export-scope)
 
 # Preprocessing
 Before the file is compiled, lines which begin with '#' are run in the preprocessor (ignoring trailing whitespace, shebangs, and multi-line strings/comments). The preprocessor executes these lines top-to-bottom as lua code.
@@ -188,7 +189,7 @@ Augmented assignment does not change the scope of the variables being assigned t
 
 ```lua
 local foo                      | local foo
-foo, bar += 1 * 5, 2 + 4       | foo, _ENV.bar = foo + (1 * 5), _ENV.bar + (2 + 4)
+foo, bar += 1 * 5, 2 + 4       --[==[| foo, _ENV.bar = foo + (1 * 5), _ENV.bar + (2 + 4)
 function(fizz)                 | local function(fizz)
     fizz |= "buzz"             |    fizz = fizz or ("buzz")
 end                            | end
@@ -211,6 +212,9 @@ pow_x = (x) -> do             | local pow_x = function(x)
     y = x * x                 |     local y = x * x
     return y                  |     return y
 end                           | end
+
+-- Lambdas will trim semicolons, making it easy to create an empty function.
+empty = -> ;                    | local empty = function() end
 ```
 If a lambda is made with a fat arrow (`=>`), the argument list will include an implicit self parameter.
 ```lua
@@ -222,52 +226,71 @@ Lambdas also have a shortened definition format similar to functions.
 ```lua
 greet(name) -> print("hello" .. name)
 person.greet() => print("hello" .. self.name)
+
+-- Local/Global supported.
+local mylocal -> ;
+global myGlobal -> ;
 ```
 
 ## Function Decorators
-Taken directly from Python, function decorators allow you to wrap additional functionality around a function as it's being applied.
+Taken directly from Python, function decorators allow you to wrap additional functionality around a function as it's being created.
 
-In essence, a decorator is a function which takes in another function as the only argument, does some stuff, and optionally returns a value to take the original function's place. Decorator syntax automates the process of passing a newly created function to a decorator.
+In essence, a decorator is a function which takes in another function as an argument, does some stuff, and optionally returns a value. Decorator syntax automates the process of passing a newly created function to a decorator and saving the decorator's return value.
+
+Decorators can be given arguments. In this case, the decorator is first called with the arguments, and then the decorator's return value is called with the function being decorated. This allows a single decorator to be more versatile in what it does to the functions it's given.
 
 Decorators can be nested. Nested decorators are applied bottom to top.
 
 ```lua
 function decorate(func)
-	return function()
+	return function(...)
 		print "hallo"
-		func()
+		func(...)
 	end
 end
-function decorate2(func)
-	return function()
-		print "world"
-		func()
+function decorate2(msg)
+	return function(func) -- executed for decoration
+		return function(...) -- returned function
+			print(msg) 
+			func(...) 
+		end
 	end
 end
 function decorate3(func)
-	return function()
+	return function(...)
 		print ":3"
-		func()
+		func(...)
 	end
 end
 
 @decorate
 @decorate2
 @decorate3
-function bruh() 
-    print("original message") 
+function bruh(msg) 
+    print(msg)
 end
---- >>
-local bruh = decorate3 ( function()
-    _ENV. print ( "original message" )
-end )
-bruh = decorate2 ( bruh )
-bruh = decorate ( bruh )
---- >> 
-bruh()
+
+--- Returns as >>
+bruh = decorate ( decorate2 ( decorate3 ( bruh ) ) )
+
+--- Results in >> 
+bruh("original message")
 
 >> hallo
 >> world
 >> :3
 >> original message
+```
+
+If you need a better explanation and usage examples, look up a tutorial on the feature in Python. The behavior should be roughly identical.
+
+## Export Scope
+In base Lua, when creating a module a common convention is to create a table at the top of the file and place values to be exported in this table. Luxtre makes this process easier.
+
+To create an export variable, you use the new `export` keyword. Export scope is similar to global scope, except it prepends the variable name with "`__export.`". If an export statement is used anywhere in the chunk, the `__export` table is automatically returned at the end. At this time it is not possible to combine the export table and other custom return values.
+
+```lua
+                                | __export = {}
+export bruh = "some value"      | __export.bruh = function()
+                                | return __export
 ```

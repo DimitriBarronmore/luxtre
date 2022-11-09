@@ -1,7 +1,7 @@
 # Custom Grammars
 A cool feature of Luxtre is the ability to define and combine custom grammars which can transform the final output of a file. To understand exactly how to write a grammar we first need to understand exactly how Luxtre processes code before it reaches the parser.
 
-> Note: These features are subject to change in future versions and forward-compatibility is not guaranteed. If you intend to make your own grammars at this time, be prepared for them to not work in newer releases.
+> Note: Luxtre's compilation step is more than a little rickshaw and these features are EXTREMELY likely to change with further development. Forward-compatibility is not only not guaranteed, it should not be expected at this time. If you intend to make your own grammars in the current version, be prepared for them to not work in newer releases.
 
 ## Tokenization
 After the pre-processor runs, the resulting code is converted into a series of the following basic terminal tokens:
@@ -202,25 +202,21 @@ If you're allowing terminals to print themselves, you don't need to worry about 
 >>   - Once the block is finished printing and evaluation moves on to other statements, if the variable's locality has changed or been re-declared the variable being assigned to is made global or local.
 > 
 > In order to help with this logic, the file [luxtre.grammars.variable_scoping_functions.luxh](/luxtre.grammars.variable_scoping_functions.luxh) contains definitions for a couple of helpful functions used internally.
->> - `check_localness(out, varname)` -- returns `true` if the variable is local, `false` if it's global, and `nil` if it's unassigned.
->> - `set_global(out, varname)` -- sets the variable to be global
->> - `set_local(out, varname)` -- sets the variable to be local
->> - `reset_scope(out, varname)` -- sets the variable to be undefined
->> - `temp_local(out, varname)` -- sets the variable as TEMPORARILY local
->> - `temp_global(out, varname)` -- sets the variable as TEMPORARILY global
->> - `get_hastemp(out, varname)` -- like check_localness, but for temporary locality.
+>> - `add_scope(out, scopename, prefix, prefixmode)` -- define a scope. Valid prefix modes are `"always"` (always insert before the variable name) and `"line_start"` (only insert at the start of the line). You shouldn't need to use this.
+>> - `scope_info(out, scopename)` -- returns a table {prefix, prefixmode} for the given scope. Useful for dynamically adjusting output according to the current scope.
+>> - `set_default_assignment(out, scope)` -- sets the default scope for creating new variables
+>> - `get_default_assignment(out, scope)` -- gets the default scope for creating new variables
+>> - `set_default_index(out, scope)` -- sets the default scope for reading uninitialized variables
+>> - `get_default_index(out, scope)` -- gets the default scope for reading uninitialized variables
+>> 
+>> - `set_scope(out, varname, scope)` -- sets the current scope of the given variable
+>> - `get_scope(out, varname)` -- returns the current scope of the given variable
+>> - `set_temp(out, varname, scope)` -- sets the current TEMPORARY scope of the given variable
+>> - `get_temp(out, varname)` -- returns the current TEMPORARY scope of the given variable
 >> - `toggle_temps(out, boolean)` -- either enables or disables temporary locality. If called with `true`, temporary locals are local and temporary globals are global. If called with `false`, all variables only use their permanent locality.
->> - `push_temp_vars(out)` -- changes all temporary scope to permanent scope.
->> - `clear_temp_vars(out)` -- removes all temporary scope.
-> 
-> From creating Luxtre's grammar, the most effective method seems to be:
->  - set the assigned variables to the appropriate temporary scope
->  - enable temporary scope ( `toggle_temps(out, true)` )
->  - print the left hand of the assignment
->  - disable temporary scope ( `toggle_temps(out, false)` )
->  - print the right hand of the assignment
->  - push the variables to permanent scope ( `push_temp_vars(out)` )
-
+>> - `get_temps_enabled(out`) -- returns `true` if temps are toggled on and `false` if temps are toggled off.
+>> - `print_with_temps(out, child, ...)` -- calls child:print(out, ...) with temporary locality guaranteed to be toggled on for the duration.
+>> - `print_name_with_scope(out, name, pos)` -- `:append`s the variable name to the current line. If the variable's current scope has an `"always"` prefix, the prefix is added.
 
 # Examples
 The grammar which handles these rules is available for reference in the same format as [examples/metagrammar.luxg](examples/metagrammar.luxg). This can be used as an example of a full transpilation from a grammar into raw text.
