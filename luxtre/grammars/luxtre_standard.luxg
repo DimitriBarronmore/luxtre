@@ -287,14 +287,6 @@ statement -> decorated_func
 func_decorator -> '@' function_name [arguments] {%
 	self.children[2]:print(out)
 	local ln = out:line()
-	-- print("HERE", self.children[3].children[1])
-	-- for k,v in pairs(self.children[3].children) do
-	-- 	print("here", k,v)
-	-- 	for j,l in pairs(v.children[1]) do
-	-- 		print(k, j, l)
-	-- 	end
-	-- end
-	-- print("bigtry ", self.children[3].children[1] and self.children[3].children[1].children[1].rule)
 	local argtype = (self.children[3].children[1] and self.children[3].children[1].children[1].rule)
 	if argtype == "String" or argtype == "table_constructor" then
 		ln:append("(")
