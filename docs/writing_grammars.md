@@ -124,7 +124,7 @@ ast_node: {
 The output object uses a pair of stacks to control how output is written to the final compiled code, as well as to provide scoped, shadowable information.
 Output is split into three sections, the Header, Body, and Footer, each of which can have lines added individually.
 
-### Primary Stack
+### Primary (Lines) Stack
 ```
 out:line()
 Returns the active line at the top of the stack. 
@@ -151,22 +151,26 @@ out:pop()
 Pop the active line off the stack and return the new active line, if any.
 
 out:flush()
-Moves all previous lines to the output 
-and resets the stack with a new Body line.
+Moves all previous lines to the output and resets the stack with a new Body line.
 
-out.data
-A static table which can be used for storing
-non-scoped information about the state of the file.
+```
 
-out.scope
-A secondary stack useful for storing
-scoped information about the state of the file.
-
+### Secondary (Scopes) Stack
+Rather than holding lines, the secondary stack is useful for storing scoped information about the state of the file.
+`out.scope` is always the top of scope stack, and is always a table which can be safely edited.
+```
 out.scope:push()
-Push a new scope to the top of the stack. Deep-copies previous information.
+Creates a deep-copy of the top of the stack and pushes.
 
 out.scope:pop()
-Pops the stack to revert the scope state.
+Pops the stack, effectively reverting the stored values.
+```
+
+### Misc.
+```
+out.data
+A static table which can be used for storing non-scoped information about the state of the file.
+Regardless of the state of either stack, this table remains the same.
 
 out:print()
 Returns the concatenated output as a string.
@@ -174,6 +178,7 @@ You shouldn't need to touch this yourself.
 ```
 
 ### Line Objects
+These are the main content of the primary stack and hold the final output text.
 ```
 line:pop()
 A shortcut to out:pop()
@@ -181,27 +186,29 @@ A shortcut to out:pop()
 line:append(text, line_number)
 Appends the given text to the line. Returns the line object for chaining.
 
-If a line number is provided, this will be the line number that appears in error messages involving the appended text. If one is not provided, it will be later backfilled to the next line number.
+If a line number is provided, this will be the line number that appears in error messages involving the appended text. If one is not provided, line numbers will be automatically backfilled the next time one is available. 
 
-If you're allowing terminals to print themselves, you don't need to worry about this too much. Otherwise, steal the position from the terminals your rules are matching.
+The backfilling mechanism means that if you're allowing terminals to print themselves, you don't usually need to worry about providing positions. If you're not, steal your positions from the terminals your rules are matching.
 ```
 
 > # A note about scope rules.
-> Luxtre's standard grammar uses the rule that new variables are assigned local by default. We will call this property of a variable "locality": whether a variable is local, global, or unassigned. Alternative grammars which extend base Lua but not Luxtre can obtain the same logic by including [basic_local_scoping.luxg](/luxtre/grammars/basic_local_scoping.luxg).
+> Luxtre's standard grammar uses the rule that new variables are assigned local by default. We will call this property of a variable "scope": whether a variable is local, global, something else, or not yet explicitly defined within the current chunk. Alternative grammars which extend base Lua but not Luxtre can obtain the local-by-default logic by including [basic_local_scoping.luxg](/luxtre/grammars/basic_local_scoping.luxg).
+>
+> Note that the default scope is not hard-coded and can be changed via grammar extension.
 > 
-> In order to keep the syntax consistent and avoid unexpected behavior, it's important to make sure that new extensions respect variable locality. As such there are a few things you need to keep in mind when writing extensions that affect variable assignment.
+> In order to keep the syntax consistent and avoid unexpected behavior, it's important to make sure that new extensions respect variable scope and the current defaults. As such there are a few things you need to keep in mind when writing extensions that affect variable assignment or create functions with automatic arguments.
 >
->  First, remember that if your extension leverages ordinary assignment part of the work is already done for you. As long as your construct is an Expression it can be picked up by Luxtre's existing assignment, local/global assignment, let assignment, and augmented assignment rules. These will take care of prepending the appropritate prefixes on the left-hand side and setting the scope of the variable being assigned to you.
+>  First, remember that if your extension leverages ordinary assignment part of the work is already done for you. As long as your construct is an Expression it can be picked up by Luxtre's existing assignment, local/global assignment, let assignment, and augmented assignment rules. These will take care of prepending the appropritate prefixes on the left-hand side and setting the scope of the variable being assigned to automatically.
 >
-> If the construct has internal local variables, there are a few things to keep in mind.
->> - First: `out.scope:push/pop` is your friend. Internal locals can easily be contained within matched push/pops off the stack at the beginning and ending of the production rule. 
+> If creating something with internally scoped variables, such as auto-generated function arguments, there are a few things to keep in mind.
+>> - First: `out.scope:push` and `out.scope:pop` are your friends. Internal locals can easily be contained by using paired pushes/pops off the secondary stack at the beginning and ending of the production rule. 
 >> - Second: remember the order of operations.
->>   - The new variable's locality is determined, and if needed the appropriate prefix is added before the name being assigned to. 
->>        - Newly assigned variables are always local. Otherwise untyped assignment retains the previous locality.
->>   - Within the block, the variable retains its previous locality. The right hand of an assignment is always evaluated before the left hand.
->>   - Once the block is finished printing and evaluation moves on to other statements, if the variable's locality has changed or been re-declared the variable being assigned to is made global or local.
+>>   - The new variable's scope is determined, and if needed the appropriate prefix is added before the name being assigned to. 
+>>   - For assigning to undefined variables, check the default assignment scope. Otherwise make certain to respect the variable's previous scope.
+>>   - Until the statement is fully closed, the variable retains its previous scope. Remember that the right hand side of an assignment is always fully evaluated before the left hand side. The only exception is `let var` style pre-scoping.
+>>   - Once the statement has been fully processed, if the variable's scope has changed make absolutely certain those changes are pushed to the output.
 > 
-> In order to help with this logic, the file [luxtre.grammars.variable_scoping_functions.luxh](/luxtre.grammars.variable_scoping_functions.luxh) contains definitions for a couple of helpful functions used internally.
+> In order to help with this logic, the file [luxtre.grammars.variable_scoping_functions.luxh](/luxtre.grammars.variable_scoping_functions.luxh) contains definitions for some helpful functions that are heavily used in the default grammar.
 >> - `add_scope(out, scopename, prefix, prefixmode)` -- define a scope. Valid prefix modes are `"always"` (always insert before the variable name) and `"line_start"` (only insert at the start of the line). You shouldn't need to use this.
 >> - `scope_info(out, scopename)` -- returns a table {prefix, prefixmode} for the given scope. Useful for dynamically adjusting output according to the current scope.
 >> - `set_default_assignment(out, scope)` -- sets the default scope for creating new variables
@@ -213,12 +220,13 @@ If you're allowing terminals to print themselves, you don't need to worry about 
 >> - `get_scope(out, varname)` -- returns the current scope of the given variable
 >> - `set_temp(out, varname, scope)` -- sets the current TEMPORARY scope of the given variable
 >> - `get_temp(out, varname)` -- returns the current TEMPORARY scope of the given variable
->> - `toggle_temps(out, boolean)` -- either enables or disables temporary locality. If called with `true`, temporary locals are local and temporary globals are global. If called with `false`, all variables only use their permanent locality.
+>> - `toggle_temps(out, boolean)` -- either enables or disables temporary scope. If called with `true`, all variables print themselves with their temporary scope. If called with `false`, all variables will print with their current permanent scope. Disabled by default.
 >> - `get_temps_enabled(out`) -- returns `true` if temps are toggled on and `false` if temps are toggled off.
->> - `print_with_temps(out, child, ...)` -- calls child:print(out, ...) with temporary locality guaranteed to be toggled on for the duration.
+>> - `print_with_temps(out, child, ...)` -- calls child:print(out, ...) with temporary scope guaranteed to be toggled on for the duration. Useful for printing the left-hand side of an assignment.
 >> - `print_name_with_scope(out, name, pos)` -- `:append`s the variable name to the current line. If the variable's current scope has an `"always"` prefix, the prefix is added.
+>> - `push_temps(out)` -- takes all temporary variable scope and makes it permanent. Useful for setting variable scope after an assignment is fully processed.
 
 # Examples
-The grammar which handles these rules is available for reference in the same format as [examples/metagrammar.luxg](examples/metagrammar.luxg). This can be used as an example of a full transpilation from a grammar into raw text.
+The grammar which handles creating grammar extensions is itself available for reference as [examples/metagrammar.luxg](examples/metagrammar.luxg). This can also be used as an example of a full transpilation from an arbitrary non-Lua grammar into working code.
 
 If you wish to see an example which demonstrates extending an existing grammar, consider examining Luxtre's primary grammar in [`luxtre_standard.luxg`](/luxtre/grammars/luxtre_standard.luxg).
