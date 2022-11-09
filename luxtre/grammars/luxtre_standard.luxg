@@ -303,7 +303,6 @@ decorated_func -> func_decorator {func_decorator} (function_assignment
 									| lambda_function_assignment 
 									| lambda_local_function_assignment
 									| lambda_global_function_assignment
-									-- | decorated_func
 								) {% 							
 	local assignment = self.children[3].children[1]
 
