@@ -16,6 +16,7 @@ local new_output = require(path .. "parser.output")
 local new_sandbox = require(path .. "utils.sandbox")
 local load_func = require(path .. "utils.safeload")
 local data = require(path .. "utils.data")
+local fs = require(path .. "utils.filesystems")
 
 local module = {}
 
@@ -357,7 +358,7 @@ end
 
 local function make_grammar_function(filename, env, print_out)
     local concat = {}
-    local file = io.open(filename)
+    local file = fs.open(filename)
     if not file then
         error(("file %s does not exist"):format(filename), 2)
     end

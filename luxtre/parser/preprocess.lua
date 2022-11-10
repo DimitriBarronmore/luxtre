@@ -4,6 +4,7 @@ local load_func = require(path .. "utils.safeload")
 
 local new_sandbox = require(path .. "utils.sandbox")
 
+local fs = require(path .. "utils.filesystems")
 
 local export = {}
 
@@ -252,7 +253,7 @@ local function setup_sandbox(name)
     sandbox.include = function(filename)
         local filename = filename:gsub("%.", "/")
         filename = filename .. ".luxh"
-        local file = io.open(filename, "r")
+        local file = fs.open(filename, "r")
         if file == nil then
             error("file " .. filename .. " does not exist")
         end

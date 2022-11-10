@@ -13,6 +13,7 @@ local new_output = require(path .. "parser.output")
 local load_func = require(path .. "utils.safeload")
 local deepcopy = require(path .. "utils.deepcopy")
 local data = require(path .. "utils.data")
+local fs = require(path .. "utils.filesystems")
 
 -- local std_grammar = require(path .. "grammars.std")
 -- local std_grammar = load_grammar(path .. "grammars.luxtre_standard")
@@ -41,7 +42,7 @@ local function process_input(source, isfile)
     local fixedname = source:gsub("%.([^.\\/]-%.)", "/%1")
     if isfile then
         local concat = {}
-        local file = io.open(fixedname, "r")
+        local file = fs.open(fixedname, "r")
         if file == nil then
             error("file " .. source .. " does not exist", 3)
         end
@@ -117,7 +118,7 @@ end
 local function filepath_search(filepath, filetype)
     for path in package.path:gmatch("[^;]+") do
         local fixed_path = path:gsub("%.lua", filetype):gsub("%?", (filepath:gsub("%.", "/")))
-        local file = io.open(fixed_path)
+        local file = fs.open(fixed_path)
         if file then file:close() return fixed_path end
     end
 end
@@ -210,7 +211,7 @@ local function create_loaders(filetype, grammars)
         -- local inputstream = create_inpstream(filename)
         local compiled_text = generic_compile(inpstream, grammar)
 
-        local file = io.open(outputname, "w+")
+        local file = fs.open(outputname, "w+")
         file:write(compiled_text)
         file:flush()
         file:close()
