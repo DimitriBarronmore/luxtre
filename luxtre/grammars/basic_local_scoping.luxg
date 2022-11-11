@@ -133,6 +133,7 @@ global_assignment -> global name_list ['=' expression_list] {%
 for_numeric -> for Name '=' expression ',' expression [',' expression] do_block {%
 	out.scope:push()
 	set_scope(out, self.children[2].value, "local")
+	set_temp(out, self.children[2].value, "local")
 	for _,child in ipairs(self.children) do
 		child:print(out)
 	end
