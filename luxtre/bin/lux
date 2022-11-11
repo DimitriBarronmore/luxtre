@@ -7,9 +7,52 @@ package.path = package.path .. ";" .. arg[0]:gsub("luxtre/bin/lux$", "") .. "?.l
 local data = require("luxtre.utils.data")
 data.__binary_prefix = curr_location
 local loader = require("luxtre.init")
-local file = arg[1]
+loader.register()
+
+local realargs = {}
+local capturemore = {
+    -- ["--cap"] = true,
+    -- ["-c"] = true,
+}
+
+local capd = {}
+for k,v in ipairs(arg) do
+    -- print(k, v)
+    if v:match("^%-") and not capd[v] then
+        if capturemore[v] then
+            local capture = arg[k + 1]
+            if capture == nil then
+                error("argument " .. v .. " requires a value", 0)
+            end
+            capd[arg[k + 1]] = true
+            realargs[v] = capture
+        else
+            realargs[v] = true
+        end
+        -- realargs[v] = true
+    elseif not capd[v] then
+        table.insert(realargs, v)
+    end
+end
+
+-- for k,v in pairs(realargs) do
+--     print(k,v)
+-- end
+
+
+local file = realargs[1]
 
 if type(file) == "string" then
+    file = file:gsub("%.lux$", "")
+    if realargs["-c"] or realargs["--compile"] == true then
+        local res, err = pcall(loader.compile_file, file)
+        if err then
+            error("lux: " .. err, 0)
+        end
+    end
+    if realargs["-c"] or realargs["--compile"] == true then
+        loader.auto_compile(true)
+    end
     local res, err = pcall(loader.dofile, file)
     if err then
         error("lux: " .. err, 0)
@@ -80,7 +123,7 @@ elseif type(file == "nil") then
     local eqs
     local concat = {}
     local continue
-    print("Luxtre indev.0.3.1 -- repl 0.1")
+    print("Luxtre indev.0.5.0 -- repl 0.2")
     while exit ~= true do
         io.stdout:write("> ")
         local input = io.stdin:read()
@@ -105,3 +148,4 @@ elseif type(file == "nil") then
         end
     end
 end
+--]==]
