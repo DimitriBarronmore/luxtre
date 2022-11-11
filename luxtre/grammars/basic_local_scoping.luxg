@@ -148,8 +148,9 @@ for_in -> for name_list in expression_list do_block {%
 		table.insert(lhtab, child.children[2])
 	end
 	for i,v in ipairs(lhtab) do
-		set_scope(out, v.value, "local")
+		set_temp(out, v.value, "local")
 	end
+	push_temps(out)
 	for _, child in ipairs(self.children) do
 		child:print(out)
 	end
