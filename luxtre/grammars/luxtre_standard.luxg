@@ -396,3 +396,114 @@ decorated_func -> func_decorator {func_decorator} (function_assignment
 	push_temps(out)
 	return func_name
 %}
+
+
+@keywords {"try", "catch"}
+
+--try_block -> [variable_list '='] try block end {%
+try_block -> try block end {%
+	local block = self.children[2]
+	local pc_txt = get_name_with_scope(out, "pcall")
+
+	local ln = out:line()
+
+	ln:append(pc_txt .. "(function() ", self.children[1].position[1])
+
+	block:print(out)
+
+	ln = out:line()
+
+	ln:append("end )", self.children[3].position[1])
+%}
+
+
+try_block -> try block catch [Name] block end {%
+	out.scope:push()
+
+	local block = self.children[2]
+	local errname = self.children[4]
+	local block2 = self.children[5]
+	local pc_txt = get_name_with_scope(out, "pcall")
+
+	if #errname.children == 0 then
+		errname = "err"
+	else
+		errname = errname.children[1].value
+	end
+
+	local ln = out:line()
+
+	ln:append("do")
+
+	ln:append("local __TEMP_status__,")
+	ln:append(errname)
+	ln:append("= " .. pc_txt .. "(function() ", self.children[1].position[1])
+
+	block:print(out)
+
+	ln = out:line()
+
+	ln:append("end )")
+
+	set_scope(out, errname, "local")
+
+	ln:append("if __TEMP_status__ == false then", self.children[3].position[1])
+	
+	block2:print(out)
+
+	ln = out:line()
+	ln:append("end")
+
+
+	ln:append("end", self.children[6].position[1])
+	out.scope:pop()
+%}
+
+try_block -> try block catch [Name] block else block end {%
+	out.scope:push()
+
+	local block = self.children[2]
+	local errname = self.children[4]
+	local block2 = self.children[5]
+	local block3 = self.children[7]
+	local pc_txt = get_name_with_scope(out, "pcall")
+
+	if #errname.children == 0 then
+		errname = "err"
+	else
+		errname = errname.children[1].value
+	end
+
+	local ln = out:line()
+
+	ln:append("do")
+
+	ln:append("local __TEMP_status__,")
+	ln:append(errname)
+	ln:append("= " .. pc_txt .. "(function() ", self.children[1].position[1])
+
+	block:print(out)
+
+	ln = out:line()
+
+	ln:append("end )")
+
+	set_scope(out, errname, "local")
+
+	ln:append("if __TEMP_status__ == false then", self.children[3].position[1])
+	
+	block2:print(out)
+
+	ln = out:line()
+	ln:append("else", self.children[6].position[1])
+	block3:print(out)
+
+	ln = out:line()
+	ln:append("end")
+
+
+	ln:append("end", self.children[8].position[1])
+	out.scope:pop()
+%}
+
+statement -> try_block

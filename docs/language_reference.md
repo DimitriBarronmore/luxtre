@@ -271,7 +271,7 @@ function bruh(msg)
 end
 
 --- Returns as >>
-bruh = decorate ( decorate2 ( decorate3 ( bruh ) ) )
+local bruh = decorate ( decorate2 ( decorate3 ( bruh ) ) )
 
 --- Results in >> 
 bruh("original message")
@@ -293,4 +293,38 @@ To create an export variable, you use the new `export` keyword. Export scope is 
                                 | __export = {}
 export bruh = "some value"      | __export.bruh = function()
                                 | return __export
+```
+
+## Try / Catch / Else
+Simple error handling tends to be a bit of a pain thanks to the boilerplate introduced by `pcall`. Try/Catch blocks allow you to simplify that by writing in the boilerplate logic for you.
+
+Note that this will use whatever the value of `pcall` is at the current point in the code, so if it's been removed this will fail.
+
+```lua
+-- Simple error suppression
+try                             | _ENV.pcall( function()
+    print "do stuff"            |   _ENV.print "do stuff"
+end                             | end ) 
+
+-- Catch errors and do something with them.
+-- Optionally, throw in an else in case there's no error at all.
+-- By default the error message is available as `err`, but you can change it to any name.
+try     
+    print(undefined.foo)
+catch myerror
+    print("error is: " .. myerror)
+else
+    print("No error!")
+end
+--- Returns as >> 
+do 
+    local __status__, myerror = _ENV.pcall( function()
+        _ENV.print(undefined.foo)
+    end) 
+    if __status__ == false then
+        _ENV.print("error is:" .. myerror)
+    else
+        _ENV.print("No error!")
+    end
+end
 ```
