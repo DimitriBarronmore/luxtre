@@ -257,7 +257,7 @@ local function create_loaders(filetype, grammars)
                 if status == true then
                     return res(modulepath)
                 else
-                    error("error loading module '" .. modulepath .. "'\n" .. res, 3)
+                    error("error loading module '" .. modulepath .. "'\n" .. tostring(res), 3)
                 end
             end
         else
