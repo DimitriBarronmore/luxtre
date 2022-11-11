@@ -123,7 +123,7 @@ loaders.love.exists = function(filepath)
 end
 
 loaders.love.open = function(filepath, mode)
-	local nativefs = require("utils.nativefs")
+	-- local nativefs = require("utils.nativefs")
 	-- local prev_direc = love.filesystem.getWorkingDirectory()
 	-- nativefs.setWorkingDirectory(love.filesystem.getSource())
 
