@@ -224,6 +224,7 @@ The backfilling mechanism means that if you're allowing terminals to print thems
 >> - `get_temps_enabled(out`) -- returns `true` if temps are toggled on and `false` if temps are toggled off.
 >> - `print_with_temps(out, child, ...)` -- calls child:print(out, ...) with temporary scope guaranteed to be toggled on for the duration. Useful for printing the left-hand side of an assignment.
 >> - `print_name_with_scope(out, name, pos)` -- `:append`s the variable name to the current line. If the variable's current scope has an `"always"` prefix, the prefix is added.
+>> - `get_name_with_scope(out, name, pos)` -- Returns the variable's name with the proper prefix, for manual appending.
 >> - `push_temps(out)` -- takes all temporary variable scope and makes it permanent. Useful for setting variable scope after an assignment is fully processed.
 
 # Examples

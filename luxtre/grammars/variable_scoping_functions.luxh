@@ -120,5 +120,22 @@ local function print_name_with_scope(out, name, pos)
 	-- self.children[1]:print(out)
 end
 
+local function get_name_with_scope(out, name)
+	-- local name = self.children[1].value
+	local scope = get_scope(out, name)
+	if scope == nil then
+		scope = get_default_index(out)
+	end
+
+	local scopedata = scope_info(out, scope)
+
+	if scopedata[2] == "always" then
+		return scopedata[1] .. name
+	else
+		return name
+	end
+	-- self.children[1]:print(out)
+end
+
 
 %}
