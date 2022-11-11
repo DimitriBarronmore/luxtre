@@ -72,7 +72,7 @@ end
 
 local function get_scope(out, varname)
 	local states
-	if get_temps_enabled(out) then
+	if get_temps_enabled(out) and out.scope.__TEMP_variable_states[varname] ~= nil then
 		states = out.scope.__TEMP_variable_states
 	else
 		states = out.scope.__variable_states
@@ -100,6 +100,7 @@ local function push_temps(out)
 	local states = out.scope.__variable_states
 	for name, val in pairs(tstates) do
 		states[name] = val
+		tstates[name] = nil
 	end
 end
 
