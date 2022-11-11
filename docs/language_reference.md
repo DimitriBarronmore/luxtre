@@ -189,7 +189,7 @@ Augmented assignment does not change the scope of the variables being assigned t
 
 ```lua
 local foo                      | local foo
-foo, bar += 1 * 5, 2 + 4       --[==[| foo, _ENV.bar = foo + (1 * 5), _ENV.bar + (2 + 4)
+foo, bar += 1 * 5, 2 + 4       | foo, _ENV.bar = foo + (1 * 5), _ENV.bar + (2 + 4)
 function(fizz)                 | local function(fizz)
     fizz |= "buzz"             |    fizz = fizz or ("buzz")
 end                            | end
