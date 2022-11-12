@@ -18,6 +18,7 @@ if _VERSION < "Lua 5.2" then
 end		]], 0)
 		out:pop()
 		out.data.__setup_basic_scoping = true
+		set_scope(out, "_ENV", "local")
 	end
 %}
 

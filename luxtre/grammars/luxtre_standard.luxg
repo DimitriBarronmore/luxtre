@@ -62,6 +62,7 @@ local __export = {}
 		out.data.__setup_export_scope = true
 	end
 	add_scope(out, "export", "__export.", "always")
+	set_scope(out, "__export", "local")
 %}
 
 @cleanup {%
