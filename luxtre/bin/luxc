@@ -139,7 +139,7 @@ elseif exec_mode == "directory" then
     if rdepth == 0 then
         depthtxt = ""
     end
-    print(depthtext)
+    -- print(depthtext)
 
     local list 
     if realargs["--full"] then 
