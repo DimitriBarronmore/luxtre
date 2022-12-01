@@ -257,7 +257,6 @@ local function setup_sandbox(name)
         -- if file == nil then
         --     error("file " .. filename .. " does not exist")
         -- end
-        local filename = filename:gsub("^[./]+", "")
         local fpath = fs.search_filepath(filename, ".luxh")
         if not fpath then
             error("header " .. filename .. " could not be found")
