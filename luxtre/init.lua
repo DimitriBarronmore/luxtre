@@ -17,7 +17,7 @@ local data = require(path .. "utils.data")
 
 local module = {}
 
-local default_loaders = create_loaders( ".lux", {data.__binary_prefix .. path .. "grammars.luxtre_standard" })
+local default_loaders = create_loaders( ".lux", {path .. "grammars.luxtre_standard" })
 
 module.loadfile = default_loaders.loadfile
 module.dofile = default_loaders.dofile

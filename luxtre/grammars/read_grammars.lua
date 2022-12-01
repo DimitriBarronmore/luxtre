@@ -420,8 +420,9 @@ function module.load_grammar(name, print_out)
     if type(name) ~= "string" then
         error("given filename must be a string", 2)
     end
-    local fixedname = name:gsub("%.", data.sep)
-    fixedname = fixedname .. ".luxg"
+    -- local fixedname = name:gsub("%.", data.sep)
+    -- fixedname = fixedname .. ".luxg"
+    local fixedname = fs.search_filepath(name, ".luxg")
 
     if module.loaded[name] then
         return module.loaded[name]

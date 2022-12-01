@@ -53,7 +53,21 @@ end
 
 loaders.lua.exists = function(filepath)
 	local file = io.open(filepath)
-	return (file ~= nil)
+	if file ~= nil then
+		file:close()
+		return true
+	else
+		return false
+	end
+	-- return (file ~= nil)
+end
+
+loaders.lua.search_filepath = function(filepath, filetype)
+	filetype = filetype or ".lua"
+    for path in package.path:gmatch("[^;]+") do
+        local fixed_path = path:gsub("%.lua", filetype):gsub("%?", (filepath:gsub("%.", "/")))
+        if loaders.lua.exists(fixed_path) then return fixed_path end
+    end
 end
 
 loaders.lua.open_internal = loaders.lua.open

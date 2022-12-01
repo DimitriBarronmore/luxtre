@@ -251,12 +251,18 @@ local function setup_sandbox(name)
     end
 
     sandbox.include = function(filename)
-        local filename = filename:gsub("%.", "/")
-        filename = filename .. ".luxh"
-        local file = fs.open(filename, "r")
-        if file == nil then
-            error("file " .. filename .. " does not exist")
+        -- local filename = filename:gsub("%.", "/")
+        -- filename = filename .. ".luxh"
+        -- local file = fs.open(filename, "r")
+        -- if file == nil then
+        --     error("file " .. filename .. " does not exist")
+        -- end
+        local filename = filename:gsub("^[./]+", "")
+        local fpath = fs.search_filepath(filename, ".luxh")
+        if not fpath then
+            error("header " .. filename .. " could not be found")
         end
+        local file = fs.open(fpath, "r")
         local count = 0
         ---@diagnostic disable-next-line: need-check-nil
         for line in file:lines() do

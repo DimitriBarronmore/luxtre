@@ -115,13 +115,14 @@ local function load_chunk(compiled_text, linemap, filename, env)
     return safe_chunk
 end
 
-local function filepath_search(filepath, filetype)
-    for path in package.path:gmatch("[^;]+") do
-        local fixed_path = path:gsub("%.lua", filetype):gsub("%?", (filepath:gsub("%.", "/")))
-        local file = fs.open(fixed_path)
-        if file then file:close() return fixed_path end
-    end
-end
+-- local function filepath_search(filepath, filetype)
+--     for path in package.path:gmatch("[^;]+") do
+--         local fixed_path = path:gsub("%.lua", filetype):gsub("%?", (filepath:gsub("%.", "/")))
+--         -- local file = fs.open(fixed_path)
+--         -- if file then file:close() return fixed_path end
+--         if fs.exists(fixed_path) then return fixed_path end
+--     end
+-- end
 
 ---@param filetype string
 ---The file extension (including dot) to search for.
@@ -245,7 +246,8 @@ local function create_loaders(filetype, grammars)
     -- https://github.com/Reuh/candran
 
     local function luxtre_searcher(modulepath)
-        local filepath = filepath_search(modulepath, filetype)
+        -- local filepath = filepath_search(modulepath, filetype)
+        local filepath = fs.search_filepath(modulepath, filetype)
         if filepath then
             return function(filepath)
                 local status, res
