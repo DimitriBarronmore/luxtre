@@ -189,6 +189,20 @@ function output:flush()
     self:_push()
 end
 
+local function ch_append(self, text)
+    table.insert(self, text)
+end
+
+function output:push_catch()
+    local line = { append = ch_append }
+    table.insert(self._stack, line)
+end
+
+function output:pop_catch()
+    local ln = table.remove(self._stack)
+    return table.concat(ln, "")
+end
+
 local function do_lines(line, concat, last_num, linemap)
 
     local concat2 = {}
