@@ -35,13 +35,16 @@ luxtre.dostring("return -> print('hello world')")
 [**See the documentation for more information.**](docs)
 
 # Command-line Use
-Luxtre offers an extremely basic method for running .lux files directly from a command line. It is designed for and tested on Linux but should work in any bash shell; the only requirement is that luajit is installed.
+Luxtre offers extremely basic methods for running and compiling .lux files directly from a command line. It is designed for and tested on Linux but should work in any bash shell; the only requirement is that luajit is installed.
 
-Add the `luxtre/bin` folder to your path and run `lux`, or run `luxtre/bin/lux` directly from a bash prompt. If run with no arguments, `lux` will open a simple repl. Within the repl ending a line with `\` will extend input capture onto the following line, and the function `exit()` will exit.
+## Running files
+
+Add the `luxtre/bin` folder to your path and run `lux`, or run `luxtre/bin/lux` directly from a bash prompt. 
+
+If run with no arguments, `lux` will open a simple repl. Within the repl ending a line with `\` will extend input capture onto the following line, and the function `exit()` will exit.
 
 If a filename is provided, `lux` will attempt to run that file. By default neither the file being run or any other files loaded by it will be compiled, but this can be changed by adding the `-c` or `--compile` flags.
 
-## Example usage:
 ```
 # open the interactive repl
 lux
@@ -52,3 +55,8 @@ lux myawesomefile.lux
 # run a file and compile all executed .lux files to .lua
 lux myawesomefile.lux --compile
 ```
+
+## Compiling files
+Add the `luxtre/bin` folder to your path and run `luxc`, or run `luxtre/bin/luxc` directly from a bash prompt.
+
+If a filename is provided, the corresponding .lux file is compiled into a .lua file. If a folder is provided, all files in the given folder are compiled. Subfolders can be compiled recursively using the -r and -d flags. See `luxc -h` for more detailed usage instructions.
