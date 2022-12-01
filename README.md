@@ -9,7 +9,7 @@ Luxtre is compatible with all major versions of Lua (5.1+ and JIT), but does not
 > WARNING: Features you see here are entirely subject to change. Luxtre is still a work in progress, and forward-compatibility is not guaranteed.
 
 ## Current Status:
-Luxtre is in a complete and usable state. The core functionality is finished and polished, and good-enough-for-now compilation tools are available. As it stands Luxtre should be entirely usable as a standalone or embedded lua dialect, but the custom syntax API will change in the future.
+Luxtre is in a complete and usable state. The core functionality is finished and polished, and good-enough-for-now compilation tools are available. Breaking syntax changes are still possible, and the custom grammar creation API will change in the future, but as it stands Luxtre should be entirely usable as a standalone or embedded lua dialect.
 
 Current plans for future versions include bootstrapping luxtre into a more polished (and hopefully more performant) version of itself, reworking the custom syntax system from the ground up to be easier to use, making it possible to embed luxtre into love2d projects, and creating command-line tools which are more cross-platform than at current.
 
