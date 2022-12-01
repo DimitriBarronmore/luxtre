@@ -398,6 +398,7 @@ decorated_func -> func_decorator {func_decorator} (function_assignment
 	return func_name
 %}
 
+--[[ Try-Catch Blocks ]]--
 
 @keywords {"try", "catch"}
 
