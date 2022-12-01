@@ -9,10 +9,9 @@ Luxtre is compatible with all major versions of Lua (5.1+ and JIT), but does not
 > WARNING: Features you see here are entirely subject to change. Luxtre is still a work in progress, and forward-compatibility is not guaranteed.
 
 ## Current Status:
-Luxtre is in a mostly complete state. The core functionality is finished and polished (though not production tested), although not all planned grammar is currently in place. While code evaluation is noticably slow the generated code should not introduce any loss of performance, meaning in most cases files can be precompiled or file loading can be frontloaded prior to performance-critical sections. As long as a future-stable API is not required Luxtre should be safe to use.
+Luxtre is in a complete and usable state. The core functionality is finished and polished, and good-enough-for-now compilation tools are available. As it stands Luxtre should be entirely usable as a standalone or embedded lua dialect, but the custom syntax API will change in the future.
 
-Current plans for future versions involve creating command-line tools for standalone code evaluation and compilation, adding further syntax constructs to the base language, and rewriting the parser to make code generation faster.
-
+Current plans for future versions include bootstrapping luxtre into a more polished (and hopefully more performant) version of itself, reworking the custom syntax system from the ground up to be easier to use, making it possible to embed luxtre into love2d projects, and creating command-line tools which are more cross-platform than at current.
 
 # How to Use
 ```lua
