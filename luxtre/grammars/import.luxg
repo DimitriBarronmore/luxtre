@@ -1,4 +1,4 @@
-# local path = filename:gsub("import%.luxg", "")
+# local path = filename:gsub("import", "")
 # include (path .. "variable_scoping_functions")
 
 --[[ python-like import statement ]]--

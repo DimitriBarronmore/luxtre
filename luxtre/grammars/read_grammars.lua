@@ -356,7 +356,7 @@ local function wrap_errors(linemap, outputchunk)
     return check_err
 end
 
-local function make_grammar_function(filename, env, print_out)
+local function make_grammar_function(filename, modulename, env, print_out)
     local concat = {}
     local file = fs.open(filename)
     if not file then
@@ -369,7 +369,7 @@ local function make_grammar_function(filename, env, print_out)
     end
     -- local ppenv = preprocess(table.concat(concat, "\n"), filename)
     local fulltxt = table.concat(concat, "\n")
-    local status, res = pcall(preprocess, fulltxt, filename)
+    local status, res = pcall(preprocess, fulltxt, modulename)
     if status == false then
         error(res, 0)
     end
@@ -431,7 +431,7 @@ function module.load_grammar(name, print_out)
         sandbox.__load_grammar = module.load_grammar
         sandbox.__filepath = name
         sandbox.__rootpath = name:gsub("[.\\/]?[^.\\/]-$", "")
-        local status, res = pcall(make_grammar_function, fixedname, sandbox, print_out)
+        local status, res = pcall(make_grammar_function, fixedname, name, sandbox, print_out)
         if status == false then
             error(res, 2)
         else

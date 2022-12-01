@@ -64,7 +64,7 @@ end
 
 loaders.lua.search_filepath = function(filepath, filetype)
 	filetype = filetype or ".lua"
-	local filepath = filepath:gsub("^[./]+", "")
+	local filepath = filepath:gsub("^%./+", "")
     for path in package.path:gmatch("[^;]+") do
         local fixed_path = path:gsub("%.lua", filetype):gsub("%?", (filepath:gsub("%.", "/")))
         if loaders.lua.exists(fixed_path) then return fixed_path end

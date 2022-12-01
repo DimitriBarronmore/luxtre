@@ -1,4 +1,4 @@
-# local path = filename:gsub("basic_local_scoping%.luxg", "")
+# local path = filename:gsub("basic_local_scoping", "")
 # include (path .. "variable_scoping_functions")
 
 @ keywords {"global"}

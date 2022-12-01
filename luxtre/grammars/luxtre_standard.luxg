@@ -22,7 +22,7 @@
 
 --[[ Variable Scoping Crimes ]]--
 
-# local path = filename:gsub("luxtre_standard%.luxg", "")
+# local path = filename:gsub("luxtre_standard", "")
 # include (path .. "variable_scoping_functions")
 @import "$basic_local_scoping"
 
