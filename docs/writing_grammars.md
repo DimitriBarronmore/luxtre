@@ -144,11 +144,15 @@ Returns the new line.
 
 out:push_footer()
 Push a new line to the top of the stack, positioned at the end of the footer.
-
 Returns the new line.
 
+out:push_catch()
+Append a catch line to the top of the stack. This line will not be written to the output, instead silently capturing any text appended to it.
+
 out:pop()
-Pop the active line off the stack and return the new active line, if any.
+Pop the active line off the stack.
+If the line popped is a catch line, the captured text will be returned as a string. 
+Otherwise returns the new active line, if any.
 
 out:flush()
 Moves all previous lines to the output and resets the stack with a new Body line.

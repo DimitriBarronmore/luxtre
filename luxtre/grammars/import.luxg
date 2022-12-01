@@ -26,16 +26,16 @@ import_statement -> [from import_name] import import_name [as import_name] {%
 
 	out:push_catch()
 		exportname:print(out)
-	exportname = out:pop_catch()
+	exportname = out:pop()
 	
 	out:push_catch()
 		modname:print(out)
-	modname = out:pop_catch()
+	modname = out:pop()
 
 	if subname then
 		out:push_catch()
 			subname:print(out)
-		subname = out:pop_catch()
+		subname = out:pop()
 	end
 
 	--print("export", exportname)

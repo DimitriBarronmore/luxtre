@@ -173,11 +173,6 @@ function output:_push(line, index)
     return line
 end
 
-function output:pop()
-    table.remove(self._stack)
-    return self._stack[#self._stack]
-end
-
 function output:line()
     return self._stack[#self._stack]
 end
@@ -198,9 +193,13 @@ function output:push_catch()
     table.insert(self._stack, line)
 end
 
-function output:pop_catch()
+function output:pop()
     local ln = table.remove(self._stack)
-    return table.concat(ln, " ")
+    if ln.append == ch_append then
+        return table.concat(ln, " ")
+    else
+        return self._stack[#self._stack]
+    end
 end
 
 local function do_lines(line, concat, last_num, linemap)
