@@ -9,16 +9,16 @@ local data = require("luxtre.utils.data")
 local loader = require("luxtre.init")
 loader.register()
 
---[[USAGE:
-    luxc [folder]
+local help_txt = [[USAGE:
+    luxc [folder or filename]
     flags:
         -d / --maxdepth <num>: set max recursion depth, default 1
-            does nothing if -R is not set
+            does nothing if -r is not set
         -r / --recursive : compile in subfolders recursively
-        -f / --full : compiles all files in directory, not just recently edited ones
         -s : silent mode, disables printing
-        -s / --list : prints filenames, does not compile
---]]
+        -l / --list : prints filenames, does not compile
+]]
+--        -f / --full : compiles all files in directory, not just recently edited ones
 
 local marker_name = "luxc_mark"
 
@@ -31,7 +31,8 @@ local aliases = {
     ["-d"] = "--maxdepth",
     ["-r"] = "--recursive",
     ["-f"] = "--full",
-    ["-l"] = "--list"
+    ["-l"] = "--list",
+    ["-s"] = "--silent"
 }
 local capd = {}
 for k,v in ipairs(arg) do
@@ -56,9 +57,14 @@ for k,v in ipairs(arg) do
     end
 end
 
+if realargs["-h"] or (type(realargs[1]) == "nil") then
+  print(help_txt)
+  return
+end
+
 -- local print = print
 local pfunc
-if realargs["-s"] then
+if realargs["--silent"] then
     pfunc = function() end
 else
     pfunc = function(...)
@@ -78,14 +84,10 @@ end
 
 local exec_mode
 
-if type(realargs[1]) == "string" then
-    if realargs[1]:match("%.lux$") then
-        exec_mode = "files"
-    else
-        exec_mode = "directory"
-    end
+if realargs[1]:match("%.lux$") then
+    exec_mode = "files"
 else
-    error("no file/folder name provided", 0)
+    exec_mode = "directory"
 end
 
 
