@@ -328,3 +328,36 @@ do
     end
 end
 ```
+
+# Optional Grammars
+These syntax changes are not included in the base grammar by default for one reason or another, but can be loaded in a single file using the preprocessor function `add_grammar(filename)`
+
+## luxtre.grammars.import
+Provides python-like import syntax using `require`, creating tables as necessary to fill out the provided module name. Very volatile, and demands modules be made with a very specific pattern. This is more of an experiment than anything.
+
+```lua
+-- Import a module.
+-- Module names use the same syntax as dot-based table indexing.
+
+import module
+-->> local module = require('module')
+
+import module as somename
+-->> local somename = require('module")
+
+-- The output from import is expected to always be a table.
+-- Submodules are imported as or into sub-tables.
+
+import module.submodule
+--[[ >>
+    local module = _ENV.module
+    if module == nil then module = {} end
+    if module.submodule == nil then module.submodule = {} end
+    module.submodule = require("module.submodule")
+--]]
+
+-- The from prefix allows you to import a sub-table from a module export. 
+
+from module import submodule
+-->> local submodule = require("module").submodule
+```
