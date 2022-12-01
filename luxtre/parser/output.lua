@@ -200,7 +200,7 @@ end
 
 function output:pop_catch()
     local ln = table.remove(self._stack)
-    return table.concat(ln, "")
+    return table.concat(ln, " ")
 end
 
 local function do_lines(line, concat, last_num, linemap)
