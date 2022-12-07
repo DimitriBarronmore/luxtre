@@ -360,7 +360,8 @@ local function check_conditional(line, hanging_conditional, invalid_pos_map, sli
         local r5 = {line:find("function%s+[%d%a_%.:]-%s-%b()", s)}
         local r6 = {line:find("end", s)}
         local r7 = {line:find("until", s)}
-
+        local r8 = {line:find("elseif", s)}
+        
         local results_tab = {}
         if r1[1] then table.insert(results_tab, r1) end
         -- if r2[1] then table.insert(results_tab, r2) end
@@ -368,13 +369,14 @@ local function check_conditional(line, hanging_conditional, invalid_pos_map, sli
         if r4[1] then table.insert(results_tab, r4) end
         if r5[1] then table.insert(results_tab, r5) end
         if r6[1] then table.insert(results_tab, r6) end
-        if r7[1] then table.insert(results_tab, r7) end
+        if r7[1] then table.insert(results_tab, r7) end 
+        if r8[1] then table.insert(results_tab, r8) end
         table.sort(results_tab, function(a, b) return a[1] < b[1] end)
         local result = results_tab[1]
         
         if result then
             if is_block_pos_invalid(result[1] + sline_cols, invalid_pos_map) == false then
-                if (result ~= r6) and (result ~= r7) then
+                if (result ~= r6) and (result ~= r7) and (result ~= r8) then
                     hanging_conditional = hanging_conditional + 1
                 else
                     hanging_conditional = hanging_conditional - 1
@@ -404,6 +406,7 @@ function export.compile_lines(text, name, path)
     for line in (text .. "\n"):gmatch(".-\n") do
         table.insert(ppenv.__lines, line)
     end
+    table.insert(ppenv.__lines, "") -- one more for padding
 
     while ppenv.__count <= #ppenv.__lines do
         local line = ppenv.__lines[ppenv.__count]
@@ -457,10 +460,12 @@ function export.compile_lines(text, name, path)
 
 				end
 
-                line = change_macros(ppenv, line, ppenv.__count, name)
-                in_string, eqs = multiline_status(line, in_string, eqs)
-                table.insert(ppenv._output, line)
-                ppenv._linemap[#ppenv._output] = special_count or positions_count
+                if ppenv.__count < #ppenv.__lines then --strip final padding line
+                    line = change_macros(ppenv, line, ppenv.__count, name)
+                    in_string, eqs = multiline_status(line, in_string, eqs)
+                    table.insert(ppenv._output, line)
+                    ppenv._linemap[#ppenv._output] = special_count or positions_count
+                end
             end
         end
         ppenv.__count = ppenv.__count + 1
