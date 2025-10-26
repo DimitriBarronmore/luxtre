@@ -32,9 +32,12 @@
     '::',
     '...',
     '..',
+    '//',
+    '>>',
+    '<<',
   }
 
-START -> block <eof>
+START -> block
 
 block -> {statement} [return_statement] {%
 		out.scope:push()
@@ -75,7 +78,7 @@ for_numeric -> for Name '=' expression ',' expression [',' expression] do_block
 for_in -> for name_list in expression_list do_block
 function_assignment -> function function_name function_body
 local_function_assignment -> local function Name function_body
-local_assignment -> local name_list ['=' expression_list]
+local_assignment -> local attname_list ['=' expression_list]
 
 return_statement -> return [expression_list] [';']
 
@@ -85,6 +88,8 @@ function_name -> Name {'.' Name} [':' Name]
 
 variable_list -> variable {',' variable}
 name_list -> Name {',' Name}
+attname_list -> Name attrib {',' Name attrib}
+attrib -> ['<' Name '>']
 expression_list -> expression {',' expression}
 
 variable -> Name 
@@ -134,8 +139,14 @@ binop -> '+'
     | '-'
     | '*'
     | '/'
+    | '//'
     | '^'
     | '%'
+    | '&'
+    | '~'
+    | '|'
+    | '>>'
+    | '<<'
     | '..'
     | '<'
     | '<='
@@ -146,4 +157,4 @@ binop -> '+'
     | 'and'
     | 'or'
 
-unop -> '-' | not | '#'
+unop -> '-' | not | '#' | '~'

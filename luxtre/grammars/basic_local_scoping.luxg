@@ -95,11 +95,11 @@ assignment -> variable_list '=' expression_list {%
 %}
 
 @reset local_assignment
-local_assignment -> local name_list ['=' expression_list] {%
+local_assignment -> local attname_list ['=' expression_list] {%
 	self.children[1]:print(out)
 	local lhtab = { self.children[2].children[1].value }
 	--local lhtab = { }
-	local gathertab = self.children[2].children[2]:print(out,true)
+	local gathertab = self.children[2].children[3]:print(out,true)
 	for i, child in ipairs(gathertab) do
 		table.insert(lhtab, child.children[2].value)
 	end
