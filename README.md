@@ -30,6 +30,7 @@ luxtre.dofile("file")
 local chunk = luxtre.loadstring(code_string)
 luxtre.dostring("return -> print('hello world')")
 ```
+> NOTE: Running .lux files using Luxtre as a library does not work in the current version if you just set your Lua path to get the file, due to the need to load files from disk relative to the current working directory. You'll need to include it in your project. This will be fixed at a later date.
 
 [**See the documentation for more information.**](docs)
 
