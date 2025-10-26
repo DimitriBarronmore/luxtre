@@ -356,6 +356,16 @@ local function wrap_errors(linemap, outputchunk)
     return check_err
 end
 
+local function setup_sandbox(sbox)
+    local ic = sbox.include
+    sbox.include = function(filename, flags)
+        if data.__binary_prefix then
+            filename = data.__binary_prefix .. filename
+        end
+        ic(filename, flags)
+    end
+end
+
 local function make_grammar_function(filename, modulename, env, print_out)
     local concat = {}
     local file = fs.open(filename)
@@ -369,7 +379,7 @@ local function make_grammar_function(filename, modulename, env, print_out)
     end
     -- local ppenv = preprocess(table.concat(concat, "\n"), filename)
     local fulltxt = table.concat(concat, "\n")
-    local status, res = pcall(preprocess.compile_lines, fulltxt, modulename)
+    local status, res = pcall(preprocess.compile_lines, fulltxt, modulename, {__setup_sandbox = setup_sandbox})
     if status == false then
         error(res, 0)
     end

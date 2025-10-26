@@ -1,11 +1,10 @@
 #!/usr/bin/env luajit
 local curr_location = arg[0]:gsub("luxtre/bin/lux$", "")
-
 package.path = package.path .. ";" .. arg[0]:gsub("luxtre/bin/lux$", "") .. "?.lua"
 -- local loader = require(arg[0] .. "/loader")
 
 local data = require("luxtre.utils.data")
--- data.__binary_prefix = curr_location
+data.__binary_prefix = curr_location
 local loader = require("luxtre.init")
 loader.register()
 

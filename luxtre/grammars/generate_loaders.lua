@@ -39,7 +39,7 @@ end
 
 local function setup_sandbox(sbox)
     sbox.__extra_grammars = {}
-
+    sbox.filename = data.__binary_prefix .. sbox.filename
     sbox.add_grammar = function(grammar)
         if type(grammar) ~= "string" then
             error("given filepath must be a string",2)
@@ -52,6 +52,13 @@ local function setup_sandbox(sbox)
             end
         end
         table.insert(sbox.__extra_grammars, grammar)
+    end
+    local ic = sbox.include
+    sbox.include = function(filename, flags)
+        if data.__binary_prefix then
+            filename = data.__binary_prefix .. filename
+        end
+        ic(filename, flags)
     end
 end
 
@@ -270,6 +277,8 @@ local function create_loaders(filetype, grammars)
         if filepath then
             return function(filepath)
                 local status, res
+                local filepath = fs.search_filepath(filepath, filetype)
+                filepath = filepath:gsub("%.lux$", "")
                 if not data.compile_files then
                     status, res = pcall(loaders.loadfile, filepath, _G)
                 else
