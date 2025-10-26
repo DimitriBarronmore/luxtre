@@ -3,8 +3,9 @@
 -- Drop Luxtre into your project files, and initialize it.
 local luxtre = require("luxtre.init")
 
--- Enable Luxtre to load .lux files directly through require.
-luxtre.register()
+-- Luxtre will automatically run .lux files, with priority over .lua files.
+-- This will now load the file "foo.lux"
+require("foo")
 
 -- Note that all functions support periods as file separators, and do not require extensions.
 

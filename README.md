@@ -14,12 +14,12 @@ Luxtre is in a complete and usable state. The core functionality is finished and
 Current plans for future versions include bootstrapping luxtre into a more polished (and hopefully more performant) version of itself, reworking the custom syntax system from the ground up to be easier to use, making it possible to embed luxtre into love2d projects, and creating command-line tools which are more cross-platform than at current.
 
 # How to Use
-```lua
-local luxtre = require "luxtre.loader"
 
--- Set up Luxtre to run .lux files through require
-luxtre.register()
--- This will now load the file "foo.lux"
+```lua
+local luxtre = require "luxtre.init"
+
+-- Luxtre will automatically run .lux files, with priority over .lua files.
+-- This will now load the file 'foo.lux' if it exists, and then try 'foo.lua'
 require("foo")
 
 -- load/dofile equivalents for .lux files
