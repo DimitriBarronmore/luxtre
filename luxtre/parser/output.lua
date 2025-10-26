@@ -83,6 +83,7 @@ function scope:push()
     local ch = self.__chunk
     local newscope = new_scope(ch, self)
     newscope.__parent = self
+    newscope.__TEMP_variable_enabled = self.__TEMP_variable_enabled
     ch.scope = newscope
 end
 
@@ -91,11 +92,29 @@ function scope:pop()
     ch.scope = self.__parent
 end
 
+function scope:get_temp_states(var)
+    local res = self.__TEMP_variable_states[var]
+    if res then return res end
+    if not self.__parent then return nil end
+    return self.__parent:get_temp_states(var)
+end
+
+function scope:get_states(var)
+    local res = self.__variable_states[var]
+    if res then return res end
+    if not self.__parent then return nil end
+    return self.__parent:get_states(var)
+end
+
 function new_scope(output, prev)
-    if not prev then
-        prev = setmetatable({}, scope)
-    end
-    local tab = deepcopy(prev)
+--    if not prev then
+--        prev = setmetatable({}, scope)
+--    end
+--    local tab = deepcopy(prev)
+    local tab = setmetatable({}, scope)
+	tab.__variable_states = {}
+	tab.__TEMP_variable_states = {}
+	tab.__TEMP_variable_enabled = false
     tab.__chunk = output
     return tab
 end

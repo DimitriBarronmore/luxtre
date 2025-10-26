@@ -70,7 +70,7 @@ local function generic_compile(inputstream, grammar)
     if status == false then
         error(res, 3)
     end
-
+--    res:_debug("reverse")
     local f_ast = ast.earley_extract(res)
     local output = new_output()
     grammar:runSetup(output)

@@ -34,9 +34,7 @@
     '..',
   }
 
-START -> chunk
-
-chunk -> block
+START -> block <eof>
 
 block -> {statement} [return_statement] {%
 		out.scope:push()

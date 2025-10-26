@@ -3,9 +3,9 @@
 		out.data.__default_scope_assignment = {}
 		out.data.__default_scope_index = {}
 		out.data.__scopes_info = {}
-		out.scope.__variable_states = {}
-		out.scope.__TEMP_variable_states = {}
-		out.scope.__TEMP_variable_enabled = false
+--		out.scope.__variable_states = {}
+--		out.scope.__TEMP_variable_states = {}
+--		out.scope.__TEMP_variable_enabled = false
 		out.data.__setup_scoping_funcs = true
 	end
 %} 
@@ -63,7 +63,7 @@ local function get_temps_enabled(out)
 end
 
 local function print_with_temps(out, child, ...)
-	local states = out.scope.__TEMP_variable_states
+--	local states = out.scope.__TEMP_variable_states
 	local enablestatus = get_temps_enabled(out)
 	toggle_temps(out, true)
 	child:print(out, ...)
@@ -71,13 +71,14 @@ local function print_with_temps(out, child, ...)
 end
 
 local function get_scope(out, varname)
-	local states
-	if get_temps_enabled(out) and out.scope.__TEMP_variable_states[varname] ~= nil then
-		states = out.scope.__TEMP_variable_states
-	else
-		states = out.scope.__variable_states
+	local state
+	if get_temps_enabled(out) then
+        state = out.scope:get_temp_states(varname)
+        if state then return state end
 	end
-	return states[varname]
+    return out.scope:get_states(varname)
+--	states = out.scope.__variable_states
+--	return states[varname]
 end
 
 local function set_scope(out, varname, scope)
@@ -86,8 +87,9 @@ local function set_scope(out, varname, scope)
 end
 
 local function get_temp(out, varname)
-	local states = out.scope.__TEMP_variable_states
-	return states[varname]
+--	local states = out.scope.__TEMP_variable_states
+--	return states[varname]
+    return out.scope:get_temp_states(varname)
 end
 
 local function set_temp(out, varname, scope)
