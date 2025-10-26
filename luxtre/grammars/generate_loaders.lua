@@ -245,7 +245,8 @@ local function create_loaders(filetype, grammars)
     end
 
     local load_compile = function(filename, env)
-        local outputname = filename:gsub("%.", data.sep) .. ".lua"
+        -- local outputname = filename:gsub("%.", data.sep) .. ".lua"
+        local outputname = filename .. ".lua"
         filename = fix_filename(filename, filetype)
         local grammar = create_grammar(grammars)
 
@@ -258,6 +259,9 @@ local function create_loaders(filetype, grammars)
         -- local inputstream = create_inpstream(filename)
         local compiled_text, linemap = generic_compile(inpstream, grammar, ppenv.__frontmatter)
         local file = io.open(outputname, "w+")
+        if not file then
+            error("could not open file '" .. outputname .. "'")
+        end
         file:write(compiled_text)
         file:flush()
         file:close()
