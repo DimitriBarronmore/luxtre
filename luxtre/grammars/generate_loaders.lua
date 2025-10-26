@@ -197,9 +197,9 @@ local function create_loaders(filetype, grammars)
     end
 
     loaders.compile_file = function(filename, outputname)
-        local outputname = (outputname or filename):gsub("%.", data.sep)
-        local filename = filename:gsub("%.", "/")
-        outputname = outputname .. ".lua"
+--        local outputname = (outputname or filename):gsub("%.", data.sep)
+--        local filename = filename:gsub("%.", "/")
+        outputname = outputname or filename .. ".lua"
         local adjusted_filename = fix_filename(filename, filetype)
         local grammar = create_grammar(grammars)
 
