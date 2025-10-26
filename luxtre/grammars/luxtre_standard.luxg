@@ -108,15 +108,17 @@ export_assignment -> export name_list ['=' expression_list] {%
 binop -> '!=' {% out:line():append("~=") %}
 
 --[[ Table/String Colon-Syntax ]]--
-function_call -> (table_constructor | String) ':' Name arguments {%
-		local ln = out:line()
-		ln:append("(")
-		self.children[1]:print(out)
-		ln:append(")")
-		self.children[2]:print(out)
-		self.children[3]:print(out)
-		self.children[4]:print(out)
-	%}
+parensed_expression -> table_constructor | String {%
+	local ln = out:line()
+	ln:append("(")
+	self.children[1]:print(out)
+	ln:append(")")
+%}
+
+function_call -> parensed_expression ':' Name arguments 
+
+variable -> parensed_expression '[' expression ']'
+    | parensed_expression '.' Name
 
 
 --[[ Augmented Assignment ]]--
