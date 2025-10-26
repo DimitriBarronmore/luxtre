@@ -7,7 +7,7 @@ if _VERSION > "Lua 5.1" then
 end
 
 local newGrammar = require(path .. "parser.grammar")
-local preprocess = require(path .. "parser.preprocess")
+local preprocess = require(path .. "preprocess.preprocess")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
 local ast = require(path .. "parser.ast")
@@ -299,14 +299,14 @@ end
 
     {"add_setup", "'@' setup functext", function(self, out)
         local ln = out:line()
-        ln:append("grammar:addSetup( function(out) ")
+        ln:append("grammar:addSetup( function(out, args) ")
         self.children[3]:print(out)
         ln:append("end)")
     end},
 
     {"add_cleanup", "'@' cleanup functext", function(self, out)
         local ln = out:line()
-        ln:append("grammar:addCleanup( function(out) ")
+        ln:append("grammar:addCleanup( function(out, args) ")
         self.children[3]:print(out)
         ln:append("end)")
     end},
@@ -369,7 +369,7 @@ local function make_grammar_function(filename, modulename, env, print_out)
     end
     -- local ppenv = preprocess(table.concat(concat, "\n"), filename)
     local fulltxt = table.concat(concat, "\n")
-    local status, res = pcall(preprocess, fulltxt, modulename)
+    local status, res = pcall(preprocess.compile_lines, fulltxt, modulename)
     if status == false then
         error(res, 0)
     end

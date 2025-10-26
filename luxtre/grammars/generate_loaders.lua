@@ -4,7 +4,7 @@ local path = (...):gsub("grammars[./\\]generate_loaders", "")
 
 local newGrammar = require(path .. "parser.grammar")
 local load_grammar = require(path .. "grammars.read_grammars").load_grammar
-local preprocess = require(path .. "parser.preprocess")
+local preprocess = require(path .. "preprocess.preprocess")
 local tokenate = require(path .. "parser.tokenate")
 local parse = require(path .. "parser.parse")
 local ast = require(path .. "parser.ast")
@@ -37,6 +37,24 @@ local function create_grammar(apply_grammars)
     return grammar
 end
 
+local function setup_sandbox(sbox)
+    sbox.__extra_grammars = {}
+
+    sbox.add_grammar = function(grammar)
+        if type(grammar) ~= "string" then
+            error("given filepath must be a string",2)
+        end
+        local found = false
+        for _,v in ipairs(sbox.__extra_grammars) do
+            if v == grammar then
+                found = true
+                return
+            end
+        end
+        table.insert(sbox.__extra_grammars, grammar)
+    end
+end
+
 local function process_input(source, isfile)
     local origname = source
     local fixedname = source:gsub("%.([^.\\/]-%.)", "/%1")
@@ -53,7 +71,7 @@ local function process_input(source, isfile)
     else
         origname = "<string>"
     end
-    local ppenv = preprocess(source, origname)
+    local ppenv = preprocess.compile_lines(source, origname, {__setup_sandbox = setup_sandbox})
 
     local inpstream = tokenate.inputstream_from_ppenv(ppenv)
 
@@ -61,7 +79,7 @@ local function process_input(source, isfile)
 end
 
 
-local function generic_compile(inputstream, grammar)
+local function generic_compile(inputstream, grammar, args)
     -- local grammar = create_grammar(grammars)
     local tokenstream = tokenate.new_tokenstream()
     tokenstream:tokenate_stream(inputstream, grammar)
@@ -73,9 +91,10 @@ local function generic_compile(inputstream, grammar)
 --    res:_debug("reverse")
     local f_ast = ast.earley_extract(res)
     local output = new_output()
-    grammar:runSetup(output)
+    args = args or {}
+    grammar:runSetup(output, args)
     f_ast:print(output)
-    grammar:runCleanup(output)
+    grammar:runCleanup(output, args)
     --print(output:print())
     return output:print()
 end
@@ -158,7 +177,7 @@ local function create_loaders(filetype, grammars)
         end
 
         -- local inputstream = create_inpstream(filename)
-        local compiled_text, linemap = generic_compile(inpstream, grammar)
+        local compiled_text, linemap = generic_compile(inpstream, grammar, ppenv.__frontmatter)
         local chunk = load_chunk(compiled_text, linemap, filename, env)
         return chunk
     end
@@ -183,7 +202,7 @@ local function create_loaders(filetype, grammars)
             appg(grammar)
         end
 
-        local compiled_text, linemap = generic_compile(inpstream, grammar)
+        local compiled_text, linemap = generic_compile(inpstream, grammar, ppenv.__frontmatter)
         local chunk = load_chunk(compiled_text, linemap, str, env)
         return chunk
     end
@@ -210,7 +229,7 @@ local function create_loaders(filetype, grammars)
         end
 
         -- local inputstream = create_inpstream(filename)
-        local compiled_text = generic_compile(inpstream, grammar)
+        local compiled_text = generic_compile(inpstream, grammar, ppenv.__frontmatter)
 
         local file = fs.open(outputname, "w+")
         file:write(compiled_text)
@@ -230,7 +249,7 @@ local function create_loaders(filetype, grammars)
         end
 
         -- local inputstream = create_inpstream(filename)
-        local compiled_text, linemap = generic_compile(inpstream, grammar)
+        local compiled_text, linemap = generic_compile(inpstream, grammar, ppenv.__frontmatter)
         local file = io.open(outputname, "w+")
         file:write(compiled_text)
         file:flush()

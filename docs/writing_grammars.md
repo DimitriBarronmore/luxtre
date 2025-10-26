@@ -86,9 +86,9 @@ If you wish to remove a non-terminal from an existing grammar entirely and start
 Note that the order in which these statements run is important, even though you can write them anywhere in the file.
 
 ## Code Blocks and Rule Printing
-Text within the brackets `{* *}` is captured and used as a code block. On their own, code blocks are written directly into the output. When placed at the end of a rule definition, they become a print function.
+Text within the brackets `{% %}` is captured and used as a code block. On their own, code blocks are written directly into the output. When placed at the end of a rule definition, they become a print function. Print functions have two arguments: `out`, and `fm`. 
 ```
-rule_name -> pattern {* print behavior *}
+rule_name -> pattern {% do print_things() end %}
 ```
 
 Print functions are the way text is output to the final file. 
@@ -98,6 +98,10 @@ Luxtre does not post-process items at the time of discovery; rather, after the A
 If a print function is not explictly declared, a default is used which simply calls `:print` on each of the current item's child branches/leaves.
 
 > Note that print functions do not need to actually output text; with careful management it is possible to perform the equivalent of semantic actions by resolving a production rule into an intermediate data structure. Be careful with this, as not making this behavior optional will interrupt the default echo-to-output print behavior and may make the rule harder to use.
+
+## Setup and Cleanup
+
+The `@setup` and `@cleanup` statements take a code block and turn them into a function which runs before or after the ast is printed, respectively. Both functions take two arguments: `out` and `args`. These are the file's output object, and the file's frontmatter. This is used by [`basic_local_scoping.luxg`](/luxtre/grammars/basic_local_scoping.luxg) and [`luxtre_standard.luxg`](/luxtre/grammars/luxtre_standard.luxg) to set up the basic scopes available in the standard grammar.
 
 ## Node Objects
 Print functions have access to two variables: `self`, the current discovered node in the AST, and `out`, the current output stream (see "The Output Object" below). Each node has a simply defined structure which gives the user enough information to transform the final text output.
@@ -198,7 +202,7 @@ The backfilling mechanism means that if you're allowing terminals to print thems
 > # A note about scope rules.
 > Luxtre's standard grammar uses the rule that new variables are assigned local by default. We will call this property of a variable "scope": whether a variable is local, global, something else, or not yet explicitly defined within the current chunk. Alternative grammars which extend base Lua but not Luxtre can obtain the local-by-default logic by including [basic_local_scoping.luxg](/luxtre/grammars/basic_local_scoping.luxg).
 >
-> Note that the default scope is not hard-coded and can be changed via grammar extension.
+> Note that the default scope is not hard-coded and can be changed via grammar extension or file frontmatter.
 > 
 > In order to keep the syntax consistent and avoid unexpected behavior, it's important to make sure that new extensions respect variable scope and the current defaults. As such there are a few things you need to keep in mind when writing extensions that affect variable assignment or create functions with automatic arguments.
 >

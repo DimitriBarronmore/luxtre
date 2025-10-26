@@ -1,0 +1,3 @@
+[submodule "luxtre/preprocess"]
+	path = luxtre/preprocess
+	url = https://github.com/DimitriBarronmore/preprocess.lua

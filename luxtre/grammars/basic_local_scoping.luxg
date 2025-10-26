@@ -1,5 +1,5 @@
 # local path = filename:gsub("basic_local_scoping", "")
-# include (path .. "variable_scoping_functions")
+# include (path:gsub("%.", "/") .. "variable_scoping_functions.luxh")
 
 @ keywords {"global"}
 
@@ -7,8 +7,8 @@
 	if not out.data.__setup_basic_scoping then
 		add_scope(out, "local", "local", "line_start")
 		add_scope(out, "global", "_ENV.", "always")
-		set_default_assignment(out, "local")
-		set_default_index(out, "global")
+		set_default_assignment(out, args.default_assignment or "local")
+		set_default_index(out, args.default_index or "global")
 
 		local ln = out:push_header()
 		ln:append([[
