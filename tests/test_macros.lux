@@ -23,7 +23,7 @@
 #define 🆙 3 
 #define 🔝 5 
 #define 📉 0 
-#define 🤔 %% 
+#define 🤔 % 
 #define 📈 .. 
 #define 🔥 "Fizz" 
 #define 🤝 "Buzz" 
