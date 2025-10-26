@@ -15,7 +15,15 @@ local path = (...):gsub("init", "")
 local create_loaders = require(path .. "grammars.generate_loaders")
 local data = require(path .. "utils.data")
 
-local module = {}
+local module = {
+    _VERSION = "indev-v0.7.0",
+    _DESCRIPTION = "A portable Lua transpiler and dialect implemented in native code.",
+    _URL = "https://github.com/DimitriBarronmore/luxtre",
+    _LICENSE = [[
+        Blue Oak Model License Version 1.0.0
+        https://blueoakcouncil.org/license/1.0.0
+    ]]
+}
 
 local default_loaders = create_loaders( ".lux", {path .. "grammars.luxtre_standard" })
 

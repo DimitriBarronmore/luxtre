@@ -125,7 +125,7 @@ elseif type(file == "nil") then
     local eqs
     local concat = {}
     local continue
-    print("Luxtre indev.0.5.2 -- repl 0.2")
+    print(("Luxtre %s -- repl 0.2"):format(loader._VERSION))
     while exit ~= true do
         io.stdout:write("> ")
         local input = io.stdin:read()
