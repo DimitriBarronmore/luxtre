@@ -18,7 +18,12 @@
 
 @keywords {
 	"let",
+	"const",
+	"close",
 }
+
+attrib -> ['<' const '>']
+attrib -> ['<' close '>']
 
 --[[ Variable Scoping Crimes ]]--
 
@@ -37,17 +42,50 @@ let_assignment -> let name_list ['=' expression_list] {%
 		table.insert(lhtab, child.children[2])
 	end
 	for i,v in ipairs(lhtab) do
-		-- print(v.value)
-		-- set_scope(out, v.value, "local")
 		set_temp(out, v.value, "local")
-		local ln = out:push_prior()
-		ln:append( ("local %s"):format(v.value), self.children[1].position[1] )
-		out:pop()
 	end
+	local ln = out:push_prior()
+	ln:append("local ")
+	self.children[2]:print(out)
+	out:pop()
+	
 	if #self.children[3].children > 0 then
 		self.children[2]:print(out)
 		self.children[3]:print(out)
 	end
+	push_temps(out)
+%}
+
+statement -> const_assignment
+
+const_assignment -> const name_list '=' expression_list {%
+	local lhtab = { self.children[2].children[1] }
+	local gathertab = self.children[2].children[2]:print(out,true)
+	for i, child in ipairs(gathertab) do
+		table.insert(lhtab, child.children[2])
+	end
+	local ln = out:line()
+	ln:append("local ")
+	for i,v in ipairs(lhtab) do
+		set_temp(out, v.value, "local")
+		if i > 1 then
+			ln:append(",")
+		end
+		ln:append(v.value .. " <const> ")
+	end
+	self.children[3]:print(out)
+	self.children[4]:print(out)
+	push_temps(out)
+%}
+
+statement -> close_assignment
+
+close_assignment -> close Name '=' expression {%
+	local name = self.children[2].value
+	set_temp(out, name, "local")
+	local ln = out:line()
+	ln:append("local " .. name .. " <close> =")
+	self.children[4]:print(out)
 	push_temps(out)
 %}
 

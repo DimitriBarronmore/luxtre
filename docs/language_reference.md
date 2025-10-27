@@ -83,6 +83,14 @@ func()                         | end
                                | --> function: 0x7f774f184ba8
 ```
 
+## Const and Close Declaration
+Declaring with the `const` or `close` keywords will cause the variables to have the `<const>` or `<close>` attributes.
+
+```lua
+const a, b = 1, 2         | local a <const>, b <const> = 1, 2
+close c = 3         | local c <const> = 3
+```
+
 ## Augmented Assignment
 The operators `+=`, `-=`, `/=`, `*=`, `%=`, `^=`, and `..=` allow you to easily perform arithmetic on a variable. They expand to longhand assignment as you would expect.
 
