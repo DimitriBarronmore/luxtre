@@ -91,17 +91,15 @@ close c = 3         | local c <const> = 3
 ```
 
 ## Augmented Assignment
-The operators `+=`, `-=`, `/=`, `*=`, `%=`, `^=`, and `..=` allow you to easily perform arithmetic on a variable. They expand to longhand assignment as you would expect.
+The operators `+=`, `-=`, `*=`, `/=`, `//=`, `^=`,, `%=`, `..=`, `and=`, `or=`, `&=`, `|=`, `<<=`, and `>>=` allow you to easily perform arithmetic on a variable. They expand to longhand assignment as you would expect.
 
 Augmented assignment does not change the scope of the variables being assigned to.
-
-`%=` and `|=` are also provided for assignment with `and` and `or`.
 
 ```lua
 local foo                      | local foo
 foo, bar += 1 * 5, 2 + 4       | foo, _ENV.bar = foo + (1 * 5), _ENV.bar + (2 + 4)
 function(fizz)                 | local function(fizz)
-    fizz |= "buzz"             |    fizz = fizz or ("buzz")
+    fizz or= "buzz"             |    fizz = fizz or ("buzz")
 end                            | end
 ```
 

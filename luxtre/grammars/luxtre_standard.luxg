@@ -3,14 +3,6 @@
 @operators {
 	'->',
     '=>',
-    '+=',
-    '-=',
-    '/=',
-    '*=',
-    '%=',
-    '^=',
-	'&=',
-	'|=',
 	'..=',
 --    '++',
 	'!=',
@@ -196,16 +188,20 @@ augmented_assignment -> variable_list augmented_op expression_list {%
 	end
 %}
 
-augmented_op -> '+=' {% return "+" %}
-augmented_op -> '-=' {% return "-" %}
-augmented_op -> '/=' {% return "/" %}
-augmented_op -> '*=' {% return "*" %}
-augmented_op -> '%=' {% return "%" %}
-augmented_op -> '^=' {% return "^" %}
-augmented_op -> '&=' {% return "and" %}
-augmented_op -> '|=' {% return "or" %}
-augmented_op -> '..=' {% return ".." %}
-
+augmented_op -> '+' '=' {% return "+" %}
+augmented_op -> '-' '=' {% return "-" %}
+augmented_op -> '*' '=' {% return "*" %}
+augmented_op -> '/' '=' {% return "/" %}
+augmented_op -> '//' '=' {% return "//" %}
+augmented_op -> '^' '=' {% return "^" %}
+augmented_op -> '%' '=' {% return "%" %}
+augmented_op -> '&' '=' {% return "&" %}
+augmented_op -> '|' '=' {% return "|" %}
+augmented_op -> '>>' '=' {% return ">>" %}
+augmented_op -> '<<' '=' {% return "<<" %}
+augmented_op -> '..' '=' {% return ".." %}
+augmented_op -> and '=' {% return 'and' %}
+augmented_op -> or '=' {% return 'or' %}
 
 --[[ Table Constructors ]]--
 
