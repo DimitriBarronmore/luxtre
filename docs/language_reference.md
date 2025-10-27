@@ -61,8 +61,7 @@ local _ENV = _ENV if _VERSION < "Lua 5.2" then 	_ENV = (getfenv and getfenv()) o
 
 If you don't like this behavior, you can change it per-file by putting the right variables in the file's [Frontmatter](/luxtre/preprocess/README.md#frontmatter). You can set the assumed scope for undeclared variables (`default_index`), and the default scope when a variable is first initialized (`default_assignment`).
 
-By default, `default_index` is `"global"` and `default_assignment` is `"local"`. It's recommended to only change `default_assignment`.
-
+By default, `default_index` is `"global"` and `default_assignment` is `"local"`. Note that the use of _ENV in Lua 5.1/JIT code requires `default_index` to be `"global"`. If you would like to use Lua's default scoping rules you can set either value to `"none"`.
 ```lua
 # frontmatter{
 #   -- Swap the defaults around...
