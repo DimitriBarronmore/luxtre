@@ -545,3 +545,33 @@ try_block -> try block catch [Name] block else block end {%
 %}
 
 statement -> try_block
+
+-- [[ Safe Indexing Operator ]]--
+
+variable -> prefix_expression '?' '.' Name {'?' '.' Name}{%
+		ln = out:line()
+		local list = {}
+		table.insert(list, self.children[1])
+		self.children[1]:print(out)
+		ln:append("and")
+		local gather = self.children[5]:print(out, true)
+		for i = 1, (#gather or 0) + 1 do
+			local nextname
+			if i == 1 then 
+				nextname = self.children[4]
+			else
+				nextname = gather[i - 1].children[3] 
+			end
+			table.insert(list, nextname)
+			for j, item in ipairs(list) do
+				item:print(out)
+				if j < #list then
+					ln:append(".")
+				end
+			end
+			if i < #gather + 1 then
+				ln:append("and")
+			end
+		end
+
+%}
