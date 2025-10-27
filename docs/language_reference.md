@@ -28,7 +28,7 @@ print("string":rep(5)) --> stringstringstringstringstring
 print("string".upper)  --> function:builtin#82
 print({"foobar"}[1])   --> foobar
 ```
-Note that `Function"string":upper()` is the same as `(someFunction("thing")):upper()`.
+Note that `function"string":upper()` is the same as `(function("string")):upper()`.
 
 Table literals wrap square-brackets around booleans, numbers, and strings on the left hand of an assignment automatically, meaning things such as string-keyed tables are easier to write.
 
