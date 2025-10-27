@@ -548,6 +548,9 @@ statement -> try_block
 
 -- [[ Safe Indexing Operator ]]--
 
+-- It should be noted that the only reason this is so complicated is to
+-- reduce the number of excessive "and x.y and x.y.z" when they're chained.
+-- Ugh.
 variable -> prefix_expression '?' '.' Name {'?' '.' Name}{%
 		ln = out:line()
 		local list = {}
@@ -575,3 +578,20 @@ variable -> prefix_expression '?' '.' Name {'?' '.' Name}{%
 		end
 
 %}
+
+-- This one I can't be bothered to figure out how to reduce all the unnecessary
+-- cruft from the output right now. It'll come out the same, it'll just all have
+-- way too many ands.
+variable -> prefix_expression '?' '[' expression ']' {%
+	ln = out:line()
+	self.children[1]:print(out)
+	ln:append("and")
+	self.children[1]:print(out)
+	self.children[3]:print(out)
+	self.children[4]:print(out)
+	self.children[5]:print(out)
+%}
+
+-- These all need to be part of the same overarching rule.
+-- It's the only way to reduce the excess ands.
+-- I don't want to do that though.
