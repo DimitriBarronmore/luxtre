@@ -574,16 +574,20 @@ statement -> try_block
 -- manner of function invocations don't create more spam than is
 -- necessary for the syntax to function.
 
--- Currently, nothing prevents the chain from ending with a
--- method index.
--- This could cause problems with attempts to introduce Candran-like method stubs,
--- but that's something to figure out at a later date.
+-- It took great pains and a lot of manual checking around method calls
+-- to ensure that this works as you'd expect and looks the same way
+-- you'd write it by hand. The result is monstrous, but it works and
+-- handles the edge cases and that's all that matters.
 
 brackets_expr -> '[' expression ']'
 
 dot_index -> '.' Name
 
-method_index -> ':' Name
+method_index -> ':' Name ['?'] arguments {%
+	self.children[1]:print(out)
+	self.children[2]:print(out)
+	self.children[4]:print(out)
+%}
 
 safe_index -> '?' (brackets_expr | dot_index | method_index | arguments)
 unsafe_index -> (brackets_expr | dot_index | method_index | arguments)
@@ -597,9 +601,17 @@ variable -> prefix_expression (safe_index | unsafe_index) {safe_index | unsafe_i
 		self.children[1]:print(out)
 	end
 	local fc = first.children[first.rule == "unsafe_index" and 1 or 2].children[1]
-	if fc.rule == "method_index" 
-	and #self.children[3].children > 0 then
-		ln:append("." .. fc.children[2].value)
+	-- Let's count the times we do the same thing...
+	if fc.rule == "method_index" then
+		-- One...
+		if #fc.children[3].children > 0 then
+			ln:append("." .. fc.children[2].value .. " and")
+			fc.__tested_question = true
+			self.children[1]:print(out)
+			fc:print(out)
+		else
+			fc:print(out)
+		end
 	else
 		fc:print(out)
 	end
@@ -612,25 +624,38 @@ variable -> prefix_expression (safe_index | unsafe_index) {safe_index | unsafe_i
 			local nextchild
 			local ct = gather[i].children[1]
 			if ct.rule == "unsafe_index" then
-				table.insert(list, ct.children[1].children[1])
 				local c = ct.children[1].children[1]
 				if c.rule == "method_index" then
-					if i < #gather then
-						ln:append("." .. c.children[2].value)
+					-- Two...
+					if #c.children[3].children > 0 then
+						if not c.__tested_question then
+							c.__tested_question = true
+							ln:append("." .. c.children[2].value .. " and")
+							for j, c in ipairs(list) do c:print(out) end
+						end
+						c:print(out)
 					else
 						c:print(out)
 					end
 				else
 					c:print(out)
 				end
+				table.insert(list, ct.children[1].children[1])
 			else
 				nextchild = ct.children[2].children[1]
 				table.insert(list, nextchild)
 				ln:append "and"
 				for j, c in ipairs(list) do
+					-- Three! Three, Ah, Ah, Ah!
 					if c.rule == "method_index" then
-						if j == #list and i < #gather then
-							ln:append("." .. c.children[2].value)
+						if #c.children[3].children > 0 then
+							if not c.__tested_question then
+								c.__tested_question = true
+								ln:append("." .. c.children[2].value .. " and")
+								for j, c in ipairs(list) do c:print(out) end
+							else
+								c:print(out)
+							end
 						else
 							c:print(out)
 						end
