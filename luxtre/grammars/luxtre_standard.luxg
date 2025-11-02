@@ -569,11 +569,15 @@ statement -> try_block
 -- [[ Safe Indexing Operator ]]--
 
 -- Reducing the number of extra unnecessary unary operator repetition
--- makes this substantially more complicated. This version isn't perfect,
--- but it's not bad.
--- Aside from the safe function calls on an incomplete chain repeating everything
--- to their left, including the chain itself, this seems close to perfect.
--- Gonna try and fix that too though.
+-- makes this substantially more complicated. 
+-- Great pains are taken to ensure that even only partial chains and all
+-- manner of function invocations don't create more spam than is
+-- necessary for the syntax to function.
+
+-- Currently, nothing prevents the chain from ending with a
+-- method index.
+-- This could cause problems with attempts to introduce Candran-like method stubs,
+-- but that's something to figure out at a later date.
 
 brackets_expr -> '[' expression ']'
 
@@ -582,23 +586,17 @@ dot_index -> '.' Name
 method_index -> ':' Name
 
 safe_index -> '?' (brackets_expr | dot_index | method_index | arguments)
+unsafe_index -> (brackets_expr | dot_index | method_index | arguments)
 
-function_call -> prefix_expression ':' Name '?' arguments {%
+variable -> prefix_expression (safe_index | unsafe_index) {safe_index | unsafe_index} {%
 	ln = out:line()
 	self.children[1]:print(out)
-	ln:append("." .. self.children[3].value .. " and")
-	self.children[1]:print(out)
-	self.children[2]:print(out)
-	self.children[3]:print(out)
-	self.children[5]:print(out)
-%}
-
-variable -> prefix_expression safe_index {safe_index} {%
-	ln = out:line()
-	self.children[1]:print(out)
-	ln:append "and"
-	self.children[1]:print(out)
-	local fc = self.children[2].children[2].children[1]
+	local first = self.children[2].children[1]
+	if first.rule == "safe_index" then
+		ln:append "and"
+		self.children[1]:print(out)
+	end
+	local fc = first.children[first.rule == "unsafe_index" and 1 or 2].children[1]
 	if fc.rule == "method_index" 
 	and #self.children[3].children > 0 then
 		ln:append("." .. fc.children[2].value)
@@ -611,18 +609,34 @@ variable -> prefix_expression safe_index {safe_index} {%
 		table.insert(list, fc)
 		local gather = self.children[3]:print(out, true)
 		for i = 1, #gather do
-			nextchild = gather[i].children[1].children[2].children[1]
-			table.insert(list, nextchild)
-			ln:append "and"
-			for j, c in ipairs(list) do
+			local nextchild
+			local ct = gather[i].children[1]
+			if ct.rule == "unsafe_index" then
+				table.insert(list, ct.children[1].children[1])
+				local c = ct.children[1].children[1]
 				if c.rule == "method_index" then
-					if j == #list and i < #gather then
+					if i < #gather then
 						ln:append("." .. c.children[2].value)
 					else
 						c:print(out)
 					end
 				else
 					c:print(out)
+				end
+			else
+				nextchild = ct.children[2].children[1]
+				table.insert(list, nextchild)
+				ln:append "and"
+				for j, c in ipairs(list) do
+					if c.rule == "method_index" then
+						if j == #list and i < #gather then
+							ln:append("." .. c.children[2].value)
+						else
+							c:print(out)
+						end
+					else
+						c:print(out)
+					end
 				end
 			end
 		end
