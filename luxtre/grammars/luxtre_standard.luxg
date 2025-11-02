@@ -568,50 +568,63 @@ statement -> try_block
 
 -- [[ Safe Indexing Operator ]]--
 
--- It should be noted that the only reason this is so complicated is to
--- reduce the number of excessive "and x.y and x.y.z" when they're chained.
--- Ugh.
-variable -> prefix_expression '?' '.' Name {'?' '.' Name}{%
-		ln = out:line()
-		local list = {}
-		table.insert(list, self.children[1])
-		self.children[1]:print(out)
-		ln:append("and")
-		local gather = self.children[5]:print(out, true)
-		for i = 1, (#gather or 0) + 1 do
-			local nextname
-			if i == 1 then 
-				nextname = self.children[4]
-			else
-				nextname = gather[i - 1].children[3] 
-			end
-			table.insert(list, nextname)
-			for j, item in ipairs(list) do
-				item:print(out)
-				if j < #list then
-					ln:append(".")
-				end
-			end
-			if i < #gather + 1 then
-				ln:append("and")
-			end
-		end
+-- Reducing the number of extra unnecessary unary operator repetition
+-- makes this substantially more complicated. This version isn't perfect,
+-- but it's not bad.
+-- Aside from the safe function calls on an incomplete chain repeating everything
+-- to their left, including the chain itself, this seems close to perfect.
+-- Gonna try and fix that too though.
 
-%}
+brackets_expr -> '[' expression ']'
 
--- This one I can't be bothered to figure out how to reduce all the unnecessary
--- cruft from the output right now. It'll come out the same, it'll just all have
--- way too many ands.
-variable -> prefix_expression '?' '[' expression ']' {%
+dot_index -> '.' Name
+
+method_index -> ':' Name
+
+safe_index -> '?' (brackets_expr | dot_index | method_index | arguments)
+
+function_call -> prefix_expression ':' Name '?' arguments {%
 	ln = out:line()
 	self.children[1]:print(out)
-	ln:append("and")
+	ln:append("." .. self.children[3].value .. " and")
 	self.children[1]:print(out)
+	self.children[2]:print(out)
 	self.children[3]:print(out)
-	self.children[4]:print(out)
 	self.children[5]:print(out)
 %}
 
--- These all need to be part of the same overarching rule.
--- It's the only way to reduce the excess ands.
--- I don't want to do that though.
+variable -> prefix_expression safe_index {safe_index} {%
+	ln = out:line()
+	self.children[1]:print(out)
+	ln:append "and"
+	self.children[1]:print(out)
+	local fc = self.children[2].children[2].children[1]
+	if fc.rule == "method_index" 
+	and #self.children[3].children > 0 then
+		ln:append("." .. fc.children[2].value)
+	else
+		fc:print(out)
+	end
+	if #self.children[3].children > 0 then
+		local list = {}
+		table.insert(list, self.children[1])
+		table.insert(list, fc)
+		local gather = self.children[3]:print(out, true)
+		for i = 1, #gather do
+			nextchild = gather[i].children[1].children[2].children[1]
+			table.insert(list, nextchild)
+			ln:append "and"
+			for j, c in ipairs(list) do
+				if c.rule == "method_index" then
+					if j == #list and i < #gather then
+						ln:append("." .. c.children[2].value)
+					else
+						c:print(out)
+					end
+				else
+					c:print(out)
+				end
+			end
+		end
+	end
+%}
