@@ -222,6 +222,26 @@ field_assignment -> '='
 	{% out:line():append("=") %}
 
 
+-- [[ Short Anonymous Function (Candran-Style) ]]--
+
+anonymous_function -> [':'] function_body {%
+	local fb = self.children[2]
+	local ln = out:line()
+	ln:append("function (")
+	if #self.children[1].children > 0 then
+		ln:append "self"
+		if #fb.children[2].children > 0 then
+			ln:append ","
+		end
+	end
+	fb.children[2]:print(out)
+	fb.children[3]:print(out)
+	set_scope(out, "self", "local")
+	fb.children[4]:print(out)
+	fb.children[5]:print(out)
+%}
+
+
 --[[ Arrow Lambdas ]]--
 anonymous_function -> lambda
 statement -> lambda_function_assignment

@@ -140,6 +140,19 @@ local mylocal -> ;
 global myGlobal -> ;
 ```
 
+## Minimalist Anonymous Functions
+As in [Candran](https://github.com/Reuh/Candran), longer anonymous functions can be created by omitting the `function` keyword. Placing a `:` before the parentheses inserts an implied `self` argument.
+
+```lua
+x = (str)
+    print(str)
+end
+y = :(k)
+    print(self[k])
+end
+
+```
+
 ## Function Decorators
 Taken directly from Python, function decorators allow you to wrap additional functionality around a function as it's being created.
 
