@@ -83,24 +83,17 @@ close_assignment -> close Name '=' expression {%
 
 --[[ Export Scope ]]--
 @setup {% 
-	if not out.data.__setup_export_scope then
-		local ln = out:push_header()
-		ln:append([[
-local __export = {}
-		]], 0)
-		out:pop()
-		out.data.__setup_export_scope = true
-	end
 	add_scope(out, "export", "__export.", "always")
 	set_scope(out, "__export", "local")
 %}
 
 @cleanup {%
 	if not out.data.__cleanup_export_scope and out.data.__add_ending_export == true then
+		local ln = out:push_header()
+		ln:append("local __export = {}", 0)
+		out:pop()
 		local ln = out:push_footer()
-		ln:append([[
-return __export
-		]], 0)
+		ln:append("return __export", 0)
 		out:pop()
 		out.data.__cleanup_export_scope = true
 	end
