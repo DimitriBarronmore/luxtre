@@ -70,6 +70,17 @@ By default, `default_index` is `"global"` and `default_assignment` is `"local"`.
 # }
 ```
 
+## Export Scope
+In base Lua, when creating a module a common convention is to create a table at the top of the file and place values to be exported in this table. Luxtre makes this process easier.
+
+To create an export variable, you use the new `export` keyword. Export scope is similar to global scope, except it prepends the variable name with "`__export.`". If an export statement is used anywhere in the compiled code, the `__export` table is automatically created at the start of the file and returned at the end. At this time it is not possible to combine the export table and other custom return values.
+
+```lua
+                                | __export = {}
+export bruh = "some value"      | __export.bruh = "some value"
+                                | return __export
+```
+
 ## Let Declaration
 Declaring with the `let` keyword is similar to declaring with `local`, but the variable is declared before the assignment. This allows functions access to the variable within the initial declaration. It can also be used as a shorter way to explicitly declare local variables.
 
@@ -87,11 +98,11 @@ Declaring with the `const` or `close` keywords will cause the variables to have 
 
 ```lua
 const a, b = 1, 2         | local a <const>, b <const> = 1, 2
-close c = 3         | local c <const> = 3
+close c = 3               | local c <const> = 3
 ```
 
 ## Augmented Assignment
-The operators `+=`, `-=`, `*=`, `/=`, `//=`, `^=`,, `%=`, `..=`, `and=`, `or=`, `&=`, `|=`, `<<=`, and `>>=` allow you to easily perform arithmetic on a variable. They expand to longhand assignment as you would expect.
+The operators `+=`, `-=`, `*=`, `/=`, `//=`, `^=`, `%=`, `..=`, `and=`, `or=`, `&=`, `|=`, `<<=`, and `>>=` allow you to easily perform arithmetic on a variable. They expand to longhand assignment as you would expect. 
 
 Augmented assignment does not change the scope of the variables being assigned to.
 
@@ -99,7 +110,7 @@ Augmented assignment does not change the scope of the variables being assigned t
 local foo                      | local foo
 foo, bar += 1 * 5, 2 + 4       | foo, _ENV.bar = foo + (1 * 5), _ENV.bar + (2 + 4)
 function(fizz)                 | local function(fizz)
-    fizz or= "buzz"             |    fizz = fizz or ("buzz")
+    fizz or= "buzz"            |    fizz = fizz or ("buzz")
 end                            | end
 ```
 
@@ -122,7 +133,7 @@ pow_x = (x) -> do             | local pow_x = function(x)
 end                           | end
 
 -- Lambdas will trim semicolons, making it easy to create an empty function.
-empty = -> ;                    | local empty = function() end
+empty = -> ;                  | local empty = function() end
 ```
 If a lambda is made with a fat arrow (`=>`), the argument list will include an implicit self parameter.
 ```lua
@@ -150,7 +161,6 @@ end
 y = :(k)
     print(self[k])
 end
-
 ```
 
 ## Function Decorators
@@ -204,17 +214,6 @@ bruh("original message")
 ```
 
 If you need a better explanation and usage examples, look up a tutorial on the feature in Python. The behavior should be roughly identical.
-
-## Export Scope
-In base Lua, when creating a module a common convention is to create a table at the top of the file and place values to be exported in this table. Luxtre makes this process easier.
-
-To create an export variable, you use the new `export` keyword. Export scope is similar to global scope, except it prepends the variable name with "`__export.`". If an export statement is used anywhere in the chunk, the `__export` table is automatically returned at the end. At this time it is not possible to combine the export table and other custom return values.
-
-```lua
-                                | __export = {}
-export bruh = "some value"      | __export.bruh = function()
-                                | return __export
-```
 
 ## Try / Catch / Else
 Simple error handling tends to be a bit of a pain thanks to the boilerplate introduced by `pcall`. Try/Catch blocks allow you to simplify that by writing in the boilerplate logic for you.
