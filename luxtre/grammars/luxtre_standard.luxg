@@ -70,6 +70,14 @@ const_assignment -> const name_list '=' expression_list {%
 	push_temps(out)
 %}
 
+statement -> const_function_assignment
+
+const_function_assignment -> const function Name function_body {%
+	out:line():append(("local %s <const> = function"):format(self.children[3].value))
+	self.children[4]:print(out)
+	set_scope(out, self.children[3].value, "local")
+%}
+
 statement -> close_assignment
 
 close_assignment -> close Name '=' expression {%
