@@ -46,12 +46,13 @@ local file = realargs[1]
 if type(file) == "string" then
     file = file:gsub("%.lux$", "")
     if realargs["-c"] or realargs["--compile"] == true then
-        loader.compile_file(file)
-    end
-    if realargs["-c"] or realargs["--compile"] == true then
         loader.auto_compile(true)
     end
-    loader.dofile(file)
+    if realargs["-c"] or realargs["--compile"] == true then
+        loader.load_compile(file)()
+    else
+        loader.dofile(file)
+    end
 elseif type(file == "nil") then
 
     -- steal some stuff from the preprocessor

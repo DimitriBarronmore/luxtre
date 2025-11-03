@@ -244,7 +244,7 @@ local function create_loaders(filetype, grammars)
         file:close()
     end
 
-    local load_compile = function(filename, env)
+    loaders.load_compile = function(filename, env)
         -- local outputname = filename:gsub("%.", data.sep) .. ".lua"
         local outputname = filename .. ".lua"
         filename = fix_filename(filename, filetype)
@@ -286,7 +286,7 @@ local function create_loaders(filetype, grammars)
                 if not data.compile_files then
                     status, res = pcall(loaders.loadfile, filepath, _G)
                 else
-                    status, res = pcall(load_compile, filepath)
+                    status, res = pcall(loaders.load_compile, filepath)
                 end
                 if status == true then
                     return res(modulepath)

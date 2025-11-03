@@ -32,6 +32,7 @@ module.dofile = default_loaders.dofile
 module.loadstring = default_loaders.loadstring
 module.dostring = default_loaders.dostring
 module.compile_file = default_loaders.compile_file
+module.load_compile = default_loaders.load_compile
 module.register = default_loaders.register
 
 module.create_loaders = create_loaders
