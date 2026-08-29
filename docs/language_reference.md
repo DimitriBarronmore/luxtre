@@ -93,12 +93,13 @@ func()                         | end
                                | --> function: 0x7f774f184ba8
 ```
 
-## Const and Close Declaration
-Declaring with the `const` or `close` keywords will cause the variables to have the `<const>` or `<close>` attributes.
+## Attribute Declaration
+When declaring local variables with attributes, you can put the attribute in place of the `local` keyword.
+This also works with function declaration.
 
 ```lua
-const a, b = 1, 2         | local a <const>, b <const> = 1, 2
-close c = 3               | local c <const> = 3
+<const> a, b = 1, 2         | local a <const>, b <const> = 1, 2
+<const> function c() end    | local c <const> = function() end
 ```
 
 ## Augmented Assignment

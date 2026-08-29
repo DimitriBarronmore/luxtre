@@ -10,12 +10,7 @@
 
 @keywords {
 	"let",
-	"const",
-	"close",
 }
-
-attrib -> ['<' const '>']
-attrib -> ['<' close '>']
 
 --[[ Variable Scoping Crimes ]]--
 
@@ -48,9 +43,9 @@ let_assignment -> let name_list ['=' expression_list] {%
 	push_temps(out)
 %}
 
-statement -> const_assignment
+statement -> attrib_assignment
 
-const_assignment -> const name_list '=' expression_list {%
+attrib_assignment -> attrib name_list '=' expression_list {%
 	local lhtab = { self.children[2].children[1] }
 	local gathertab = self.children[2].children[2]:print(out,true)
 	for i, child in ipairs(gathertab) do
@@ -63,30 +58,23 @@ const_assignment -> const name_list '=' expression_list {%
 		if i > 1 then
 			ln:append(",")
 		end
-		ln:append(v.value .. " <const> ")
+		ln:append(v.value)
+        self.children[1]:print(out)
 	end
 	self.children[3]:print(out)
 	self.children[4]:print(out)
 	push_temps(out)
 %}
 
-statement -> const_function_assignment
+statement -> attrib_function_assignment
 
-const_function_assignment -> const function Name function_body {%
-	out:line():append(("local %s <const> = function"):format(self.children[3].value))
+attrib_function_assignment -> attrib function Name function_body {%
+    local ln = out:line()
+    ln:append("local " .. self.children[3].value)
+    self.children[1]:print(out)
+	ln:append(" = function")
 	self.children[4]:print(out)
 	set_scope(out, self.children[3].value, "local")
-%}
-
-statement -> close_assignment
-
-close_assignment -> close Name '=' expression {%
-	local name = self.children[2].value
-	set_temp(out, name, "local")
-	local ln = out:line()
-	ln:append("local " .. name .. " <close> =")
-	self.children[4]:print(out)
-	push_temps(out)
 %}
 
 --[[ Export Scope ]]--
