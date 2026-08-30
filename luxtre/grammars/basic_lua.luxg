@@ -88,8 +88,8 @@ function_name -> Name {'.' Name} [':' Name]
 
 variable_list -> variable {',' variable}
 name_list -> Name {',' Name}
-attname_list -> Name attrib {',' Name attrib}
-attrib -> ['<' Name '>']
+attname_list -> Name [attrib] {',' Name [attrib]}
+attrib -> '<' Name '>'
 expression_list -> expression {',' expression}
 
 variable -> Name 
