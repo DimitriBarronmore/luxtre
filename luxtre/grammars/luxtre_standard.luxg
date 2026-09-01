@@ -28,7 +28,7 @@ let_assignment -> let name_list ['=' expression_list] {%
 		table.insert(lhtab, child.children[2])
 	end
 	for i,v in ipairs(lhtab) do
-		set_temp(out, v.value, "local")
+		set_scope(out, v.value, "local")
 	end
 	local ln = out:push_prior()
 	ln:append("local ")
@@ -39,7 +39,6 @@ let_assignment -> let name_list ['=' expression_list] {%
 		self.children[2]:print(out)
 		self.children[3]:print(out)
 	end
-	push_temps(out)
 %}
 
 statement -> attrib_assignment
