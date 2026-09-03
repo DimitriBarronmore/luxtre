@@ -222,6 +222,22 @@ local function create_loaders(filetype, grammars)
         return res()
     end
 
+    loaders.getstring = function (str)
+        if type(str) ~= "string" then
+            error("input must be a string", 2)
+        end
+        local grammar = create_grammar(grammars)
+
+        local inpstream, ppenv = process_input(str, false)
+        for _,g in ipairs(ppenv.__extra_grammars) do
+            local appg = load_grammar(g)
+            appg(grammar)
+        end
+
+        local compiled_text, linemap = generic_compile(inpstream, grammar, ppenv.__frontmatter)
+        return compiled_text, linemap
+    end
+
     loaders.compile_file = function(filename, outputname)
 --        local outputname = (outputname or filename):gsub("%.", data.sep)
 --        local filename = filename:gsub("%.", "/")
