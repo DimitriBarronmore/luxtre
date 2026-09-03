@@ -263,15 +263,15 @@ function output:print()
     for _, line in ipairs(self._header) do
         last_num = do_lines(line, concat, last_num, linemap)
     end
-    table.insert(concat,"----")
-    table.insert(linemap, last_num)
+    -- table.insert(concat,"----")
+    -- table.insert(linemap, last_num)
     for _, chunk in ipairs(self._body) do
         for _, line in ipairs(chunk) do
             last_num = do_lines(line, concat, last_num, linemap)
         end
     end
-    table.insert(concat,"---")
-    table.insert(linemap, last_num)
+    -- table.insert(concat,"---")
+    -- table.insert(linemap, last_num)
     for _, line in ipairs(self._footer) do
         last_num = do_lines(line, concat, last_num, linemap)
     end
