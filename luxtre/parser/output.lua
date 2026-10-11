@@ -50,19 +50,16 @@ function line:append(text, linenum)
         error("invalid first argument; expected string", 2)
     end
     linenum = linenum or self.__lastln or "?"
-    for text in string.gmatch(text .. "\n", "[^\n]+\n") do
-        text = text:gsub("\n", "")
-        local outtab = {tostring(text), linenum}
-        if linenum == "?" then
-            table.insert(self.__tobackfill, outtab)
-        else
-            for _,tab in ipairs(self.__tobackfill) do
-                tab[2] = linenum
-            end
-            self.__tobackfill = {}
+    local outtab = {text, linenum}
+    if linenum == "?" then
+        table.insert(self.__tobackfill, outtab)
+    else
+        for _,tab in ipairs(self.__tobackfill) do
+            tab[2] = linenum
         end
-        table.insert(self, outtab)
+        self.__tobackfill = {}
     end
+    table.insert(self, outtab)
     self.__lastln = linenum
     return self
 end
